@@ -1,3 +1,3 @@
-TODO:
+Repository for COL780
 
-1. Structurize code to /src and /includes
+TODO: Add install project feature, so that binaries can be exported and given for assignment submission.

@@ -9,3 +9,4 @@ add_custom_command(TARGET DisplayImage POST_BUILD
 endif()
 
 target_link_libraries( DisplayImage ${OpenCV_LIBS} )
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_STANDARD} -O3 -std=c++11")

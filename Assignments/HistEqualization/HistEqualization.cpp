@@ -14,13 +14,14 @@ using namespace std;
 /**
 * @function main
 */
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     //! [Load image]
     Mat src = imread(argv[1], IMREAD_COLOR);
     if (src.empty())
     {
-        cout << "Could not open or find the image!\n" << endl;
+        cout << "I Could not open or find the image!\n"
+             << endl;
         cout << "Usage: " << argv[0] << " <Input image>" << endl;
         return -1;
     }
@@ -45,5 +46,4 @@ int main(int argc, char** argv)
     //! [Wait until user exits the program]
 
     return 0;
-
 }

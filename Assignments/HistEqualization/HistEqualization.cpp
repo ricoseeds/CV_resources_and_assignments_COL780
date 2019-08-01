@@ -1,19 +1,12 @@
-/**
-* @function EqualizeHist_Demo.cpp
-* @brief Demo code for equalizeHist function
-* @author OpenCV team
-*/
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 
-#include "opencv2/highgui.hpp"
-#include "opencv2/imgproc.hpp"
 #include <iostream>
 
 using namespace cv;
 using namespace std;
 
-/**
-* @function main
-*/
+
 int main(int argc, char **argv)
 {
     //! [Load image]

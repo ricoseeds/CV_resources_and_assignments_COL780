@@ -42,17 +42,21 @@ int main(int argc, char **argv)
         cv::resize(fgMask, fgMask, cv::Size(IMG_WIDTH, IMG_HEIGHT));
 
         //get the frame number and write it on the current frame
-        rectangle(frame, cv::Point(10, 2), cv::Point(100, 20),
-                  cv::Scalar(255, 255, 255), -1);
+        rectangle(frame, cv::Point(10, 2), cv::Point(100, 20), cv::Scalar(255, 255, 255), -1);
         stringstream ss;
         ss << capture.get(CAP_PROP_POS_FRAMES);
         string frameNumberString = ss.str();
-        putText(frame, frameNumberString.c_str(), cv::Point(15, 15),
-                FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+        putText(frame, frameNumberString.c_str(), cv::Point(15, 15), FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+
         //show the current frame and the fg masks
         namedWindow("Display window", 0); // Create a window for display.
 
         // opening morph operation on fgMask
+        int operation = morph_operator + 2;
+        Mat element = getStructuringElement(morph_elem, Size(2 * morph_size + 1, 2 * morph_size + 1), Point(morph_size, morph_size));
+        morphologyEx(fgMask, fgMask, operation, element);
+
+        // Canny edge detection on fgMask
 
         // change color channel for display purpose
         cvtColor(fgMask, fgMask_col, cv::COLOR_GRAY2RGB);
@@ -71,24 +75,28 @@ int main(int argc, char **argv)
 }
 
 // #include "opencv2/imgproc.hpp"
-// #include "opencv2/imgcodecs.hpp"
 // #include "opencv2/highgui.hpp"
 // #include <iostream>
-
 // using namespace cv;
-// Mat src, dst;
-// int morph_elem = 0;     // 0
-// int morph_size = 2;     // 3
-// int morph_operator = 0; // 0
-// int const max_operator = 4;
-// int const max_elem = 2;
-// int const max_kernel_size = 21;
-// const char *window_name = "Morphology Transformations Demo";
-// void Morphology_Operations(int, void *);
+// Mat src, src_gray;
+// Mat dst, detected_edges;
+// int lowThreshold = 0;
+// const int max_lowThreshold = 100;
+// const int ratio = 3;
+// const int kernel_size = 4;
+// const char *window_name = "Edge Map";
+// static void CannyThreshold(int, void *)
+// {
+//     blur(src_gray, detected_edges, Size(3, 3));
+//     Canny(detected_edges, detected_edges, lowThreshold, lowThreshold * ratio, kernel_size);
+//     dst = Scalar::all(0);
+//     src.copyTo(dst, detected_edges);
+//     imshow(window_name, dst);
+// }
 // int main(int argc, char **argv)
 // {
-//     // CommandLineParser parser(argc, argv, "{@input | ../data/baboon.jpg | input image}");
-//     src = imread("data/probe.png", IMREAD_COLOR);
+//     // CommandLineParser parser(argc, argv, "{@input | ../data/fruits.jpg | input image}");
+//     src = imread("data/filtered_probe.png", IMREAD_COLOR); // Load an image
 //     if (src.empty())
 //     {
 //         std::cout << "Could not open or find the image!\n"
@@ -96,16 +104,11 @@ int main(int argc, char **argv)
 //         std::cout << "Usage: " << argv[0] << " <Input image>" << std::endl;
 //         return -1;
 //     }
-//     namedWindow(window_name, WINDOW_AUTOSIZE); // Create window
-//     Morphology_Operations(0, 0);
+//     dst.create(src.size(), src.type());
+//     cvtColor(src, src_gray, COLOR_BGR2GRAY);
+//     namedWindow(window_name, WINDOW_AUTOSIZE);
+//     createTrackbar("Min Threshold:", window_name, &lowThreshold, max_lowThreshold, CannyThreshold);
+//     CannyThreshold(0, 0);
 //     waitKey(0);
 //     return 0;
-// }
-// void Morphology_Operations(int, void *)
-// {
-//     // Since MORPH_X : 2,3,4,5 and 6
-//     int operation = morph_operator + 2;
-//     Mat element = getStructuringElement(morph_elem, Size(2 * morph_size + 1, 2 * morph_size + 1), Point(morph_size, morph_size));
-//     morphologyEx(src, dst, operation, element);
-//     imshow(window_name, dst);
 // }

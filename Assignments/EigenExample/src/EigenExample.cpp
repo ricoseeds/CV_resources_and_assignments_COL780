@@ -27,7 +27,7 @@ int main(int argc, char **argv)
     strcat(the_path, argv[0]);
 
     printf("%s\n", the_path);
-    cv::Mat original = imread("data/lena.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+    cv::Mat original = imread("data/lena.jpg", 0);
     namedWindow("Display window", WINDOW_AUTOSIZE);
     imshow("Display window", original);
     waitKey(0);

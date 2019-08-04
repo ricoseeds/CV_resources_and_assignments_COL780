@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 project( COL780 )
 
-find_package( OpenCV REQUIRED )
+find_package( OpenCV 4.1 REQUIRED )
 include_directories( ${OpenCV_INCLUDE_DIRS} )
 include_directories( ext/ )
 

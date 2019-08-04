@@ -1,18 +1,24 @@
 #include "EigenExample.h"
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
-using Eigen::MatrixXd;
-using namespace cv;
-using namespace std;
-
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
 
 int main(int argc, char **argv)
 {
-    MatrixXd m(2, 2);
-    m(0, 0) = 3;
-    m(1, 0) = 2.5;
-    m(0, 1) = -1;
-    m(1, 1) = m(1, 0) + m(0, 1);
-    std::cout << m << std::endl;
+    char the_path[256];
 
+    getcwd(the_path, 255);
+    strcat(the_path, "/");
+    strcat(the_path, argv[0]);
+
+    printf("%s\n", the_path);
+    cv::Mat original = imread("data/lena.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+    namedWindow("Display window", WINDOW_AUTOSIZE);
+    imshow("Display window", original);
+    waitKey(0);
     return 0;
 }

@@ -1,11 +1,22 @@
 #include "EigenExample.h"
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
 
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
+
+// Eigen includes
+#include <Eigen/Dense>
+
+// STL includes
+#include <iostream>
+
+using Eigen::MatrixXd;
+using namespace cv;
+using namespace std;
 
 int main(int argc, char **argv)
 {

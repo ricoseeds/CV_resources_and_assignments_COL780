@@ -16,6 +16,10 @@ int main(int argc, char **argv)
     int morph_elem = 0;     // 0
     int morph_size = 2;     // 3
     int morph_operator = 0; // 0
+    int lowThreshold = 100; // 100
+    const int ratio = 3;
+    const int kernel_size = 3;
+    Mat detected_edges, dst;
     //create Background Subtractor objects
     Ptr<BackgroundSubtractor> pBackSub;
     pBackSub = createBackgroundSubtractorMOG2();
@@ -56,10 +60,15 @@ int main(int argc, char **argv)
         Mat element = getStructuringElement(morph_elem, Size(2 * morph_size + 1, 2 * morph_size + 1), Point(morph_size, morph_size));
         morphologyEx(fgMask, fgMask, operation, element);
 
-        // Canny edge detection on fgMask
+        // Canny edge detection on (fgMask => GRAY_CHANNEL)
+        dst.create(fgMask.size(), fgMask.type()); // MIGHTBEBUG:  we might need color channed
+        blur(fgMask, detected_edges, Size(3, 3));
+        Canny(detected_edges, detected_edges, lowThreshold, lowThreshold * ratio, kernel_size);
+        dst = Scalar::all(0);
+        fgMask.copyTo(dst, detected_edges);
 
-        // change color channel for display purpose
-        cvtColor(fgMask, fgMask_col, cv::COLOR_GRAY2RGB);
+        // change color channel of mask
+        cvtColor(dst, fgMask_col, cv::COLOR_GRAY2RGB);
 
         // show operation : window
         frame.copyTo(win_mat(cv::Rect(0, 0, IMG_WIDTH, IMG_HEIGHT)));
@@ -73,42 +82,3 @@ int main(int argc, char **argv)
     }
     return 0;
 }
-
-// #include "opencv2/imgproc.hpp"
-// #include "opencv2/highgui.hpp"
-// #include <iostream>
-// using namespace cv;
-// Mat src, src_gray;
-// Mat dst, detected_edges;
-// int lowThreshold = 0;
-// const int max_lowThreshold = 100;
-// const int ratio = 3;
-// const int kernel_size = 4;
-// const char *window_name = "Edge Map";
-// static void CannyThreshold(int, void *)
-// {
-//     blur(src_gray, detected_edges, Size(3, 3));
-//     Canny(detected_edges, detected_edges, lowThreshold, lowThreshold * ratio, kernel_size);
-//     dst = Scalar::all(0);
-//     src.copyTo(dst, detected_edges);
-//     imshow(window_name, dst);
-// }
-// int main(int argc, char **argv)
-// {
-//     // CommandLineParser parser(argc, argv, "{@input | ../data/fruits.jpg | input image}");
-//     src = imread("data/filtered_probe.png", IMREAD_COLOR); // Load an image
-//     if (src.empty())
-//     {
-//         std::cout << "Could not open or find the image!\n"
-//                   << std::endl;
-//         std::cout << "Usage: " << argv[0] << " <Input image>" << std::endl;
-//         return -1;
-//     }
-//     dst.create(src.size(), src.type());
-//     cvtColor(src, src_gray, COLOR_BGR2GRAY);
-//     namedWindow(window_name, WINDOW_AUTOSIZE);
-//     createTrackbar("Min Threshold:", window_name, &lowThreshold, max_lowThreshold, CannyThreshold);
-//     CannyThreshold(0, 0);
-//     waitKey(0);
-//     return 0;
-// }

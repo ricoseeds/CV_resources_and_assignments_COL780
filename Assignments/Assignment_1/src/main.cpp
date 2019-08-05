@@ -84,7 +84,7 @@ int main(int argc, char **argv)
         morphologyEx(frame_bw, frame_bw, operation, element);
 
         //Thresholding to get rid of shadows
-        threshold(frame_bw, frame_bw, j["img_min_thresh"], j["img_max_thresh"], 0);
+        // threshold(frame_bw, frame_bw, j["img_min_thresh"], j["img_max_thresh"], 0);
 
         // A round of gauss blur
         blur(frame_bw, frame_bw, Size(j["gaussian_kernel_size"], j["gaussian_kernel_size"]));
@@ -94,19 +94,20 @@ int main(int argc, char **argv)
 
         // Hough Transform to fit line
         // vector<Vec2f> lines;                                     // will hold the results of the detection
-        HoughLines(frame_bw, lines, 1, CV_PI / 180, 20, 30, 1); // runs the actual detection
+        HoughLines(frame_bw, lines, 1, CV_PI / 180, j["hough_threshold"], 0, 0); // runs the actual detection
 
         for (size_t i = 0; i < lines.size(); i++)
         {
+            std::cout << " No of Lines " << lines.size() << "\n";
             float rho = lines[i][0], theta = lines[i][1];
             Point pt1, pt2;
             double a = cos(theta), b = sin(theta);
             double x0 = a * rho, y0 = b * rho;
-            pt1.x = cvRound(x0 + 1000 * (-b));
-            pt1.y = cvRound(y0 + 1000 * (a));
-            pt2.x = cvRound(x0 - 1000 * (-b));
-            pt2.y = cvRound(y0 - 1000 * (a));
-            line(frame_bw, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
+            pt1.x = cvRound(x0 + 500 * (-b));
+            pt1.y = cvRound(y0 + 500 * (a));
+            pt2.x = cvRound(x0 - 500 * (-b));
+            pt2.y = cvRound(y0 - 500 * (a));
+            line(frame, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
         }
         lines.clear();
         // Rendering stage
@@ -138,5 +139,4 @@ void show_split_window(Mat &m1, Mat &m2, Mat &ccat_frame)
 {
     m1.copyTo(ccat_frame(Rect(0, 0, IMG_WIDTH, IMG_HEIGHT)));
     m2.copyTo(ccat_frame(Rect(IMG_WIDTH, 0, IMG_WIDTH, IMG_HEIGHT)));
-    // imshow("Display window", ccat_frame);
 }

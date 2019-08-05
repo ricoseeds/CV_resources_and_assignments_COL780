@@ -1,12 +1,13 @@
 {
-    "data": "data/videos/1.mp4",
-    "resize_height": 480,
-    "resize_width": 640,
+    "data": "data/videos/2.mp4",
+    "resize_height": 1000,
+    "resize_width": 1000,
     "morph_point_size": 0,
     "morph_element": 0,
-    "canny_low_threshold": 100,
+    "canny_low_threshold": 200,
     "canny_high_threshold": 300,
     "gaussian_kernel_size": 2,
     "img_min_thresh": 230,
-    "img_max_thresh": 255
+    "img_max_thresh": 255,
+    "hough_threshold": 170
 }

@@ -54,6 +54,12 @@ int main(int argc, char **argv)
     int morph_elem = j["morph_element"];    // 0
     int morph_size = j["morph_point_size"]; // 3
     int operation = MorphType::opening;
+    //Sobel
+    Mat grad_x, grad_y, grad;
+    Mat abs_grad_x, abs_grad_y;
+    int scale = 1;
+    int delta = 0;
+    int ddepth = CV_16S;
 
     while (true)
     {
@@ -67,18 +73,26 @@ int main(int argc, char **argv)
         convert_to_gray_scale(frame, frame_bw, rgb_to_gray);
         // Histogram Equilization <NOT REQUIRED>
         // equalizeHist(frame_bw, frame_bw);
-        // pBackSub->apply(frame_bw, fgMask);
+        // background sub
         pBackSub->apply(frame_bw, frame_bw);
-        // opening morph operation on fgMask
 
+        // opening morph operation on fgMask
         Mat element = getStructuringElement(morph_elem, Size(2 * morph_size + 1, 2 * morph_size + 1), Point(morph_size, morph_size)); // TUNE
         morphologyEx(frame_bw, frame_bw, operation, element);
 
         //Thresholding to get rid of shadows
-        threshold(frame_bw, frame_bw, 230, 255, 0);
+        threshold(frame_bw, frame_bw, j["img_min_thresh"], j["img_max_thresh"], 0);
+
+        // A round of gauss blur
+        blur(frame_bw, frame_bw, Size(j["gaussian_kernel_size"], j["gaussian_kernel_size"]));
+
+        // Canny edge detector
+        Canny(frame_bw, frame_bw, j["canny_low_threshold"], j["canny_high_threshold"], 3);
+
         // Rendering stage
         convert_to_gray_scale(frame_bw, frame_bw, gray_to_rgb); // mandatory step so that concatenated_window_frame has same color Channel
         show_split_window(frame, frame_bw, concatenated_window_frame);
+
         // show frame
         imshow("Display window", concatenated_window_frame);
         int keyboard = waitKey(1); // ?

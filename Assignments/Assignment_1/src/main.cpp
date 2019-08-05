@@ -61,6 +61,9 @@ int main(int argc, char **argv)
     int delta = 0;
     int ddepth = CV_16S;
 
+    //Hough
+    vector<Vec2f> lines;
+
     while (true)
     {
         capture >> frame;
@@ -89,6 +92,23 @@ int main(int argc, char **argv)
         // Canny edge detector
         Canny(frame_bw, frame_bw, j["canny_low_threshold"], j["canny_high_threshold"], 3);
 
+        // Hough Transform to fit line
+        // vector<Vec2f> lines;                                     // will hold the results of the detection
+        HoughLines(frame_bw, lines, 1, CV_PI / 180, 20, 30, 1); // runs the actual detection
+
+        for (size_t i = 0; i < lines.size(); i++)
+        {
+            float rho = lines[i][0], theta = lines[i][1];
+            Point pt1, pt2;
+            double a = cos(theta), b = sin(theta);
+            double x0 = a * rho, y0 = b * rho;
+            pt1.x = cvRound(x0 + 1000 * (-b));
+            pt1.y = cvRound(y0 + 1000 * (a));
+            pt2.x = cvRound(x0 - 1000 * (-b));
+            pt2.y = cvRound(y0 - 1000 * (a));
+            line(frame_bw, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
+        }
+        lines.clear();
         // Rendering stage
         convert_to_gray_scale(frame_bw, frame_bw, gray_to_rgb); // mandatory step so that concatenated_window_frame has same color Channel
         show_split_window(frame, frame_bw, concatenated_window_frame);

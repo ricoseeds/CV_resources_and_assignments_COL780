@@ -1,10 +1,11 @@
-#include <iostream>
-#include <sstream>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/video.hpp>
+
+#include <iostream>
+#include <sstream>
 using namespace cv;
 using namespace std;
 
@@ -53,7 +54,7 @@ int main(int argc, char **argv)
         putText(frame, frameNumberString.c_str(), cv::Point(15, 15), FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
         //show the current frame and the fg masks
-        namedWindow("Display window", 0); // Create a window for display.
+        namedWindow("Display window", WINDOW_NORMAL); // Create a window for display.
 
         // opening morph operation on fgMask
         int operation = morph_operator + 2;

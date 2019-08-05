@@ -6,6 +6,10 @@ void MedialAxis_C::ApplyHoughTransform()
 
 }
 
+void MedialAxis_C::ApplyGradient()
+{
+}
+
 void MedialAxis_C::GetHoughLine()
 {
 
@@ -22,6 +26,10 @@ void MedialAxis_C::GetForegroundImage()
 {
 
 
+}
+
+void MedialAxis_C::ApplyMorphologicalOperator()
+{
 }
 
 void MedialAxis_C::GetMedialAxis()

@@ -10,15 +10,25 @@ public : // Constructor/ Destructor
 
 public : // Public Methods
 
+	void GetForegroundImage();
+
+	void ApplyMorphologicalOperator();
+
+	void ApplyGradient();
 
 	void ApplyHoughTransform();
 
 	void GetHoughLine();
 
 	void GetEdge();
-
-	void GetForegroundImage();
-
+	
 	void GetMedialAxis();
+
+
+private: // internal methods
+
+
+private : // class attributes
+
 
 };

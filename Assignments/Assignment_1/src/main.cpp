@@ -69,6 +69,7 @@ int main(int argc, char **argv)
         capture >> frame;
         if (frame.empty())
             break;
+<<<<<<< HEAD
         namedWindow("Display window", 0);
         // resize frame optional
         resize(frame, frame, Size(IMG_WIDTH, IMG_HEIGHT));
@@ -78,6 +79,26 @@ int main(int argc, char **argv)
         // equalizeHist(frame_bw, frame_bw);
         // background sub
         pBackSub->apply(frame_bw, frame_bw);
+=======
+        // TODO: Histogram Equilization
+
+        //update the background model
+        pBackSub->apply(frame, fgMask);
+
+        // // Copy small images into big mat
+        cv::resize(frame, frame, cv::Size(IMG_WIDTH, IMG_HEIGHT));
+        cv::resize(fgMask, fgMask, cv::Size(IMG_WIDTH, IMG_HEIGHT));
+
+        //get the frame number and write it on the current frame
+        rectangle(frame, cv::Point(10, 2), cv::Point(100, 20), cv::Scalar(255, 255, 255), -1);
+        stringstream ss;
+        ss << capture.get(CAP_PROP_POS_FRAMES);
+        string frameNumberString = ss.str();
+        putText(frame, frameNumberString.c_str(), cv::Point(15, 15), FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+
+        //show the current frame and the fg masks
+        namedWindow("Display window", WINDOW_NORMAL); // Create a window for display.
+>>>>>>> 74955cdb3600e4b8bc1222cb4bb1cc2f38356407
 
         // opening morph operation on fgMask
         Mat element = getStructuringElement(morph_elem, Size(2 * morph_size + 1, 2 * morph_size + 1), Point(morph_size, morph_size)); // TUNE

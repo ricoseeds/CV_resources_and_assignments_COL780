@@ -22,6 +22,7 @@ typedef enum
     gray_to_rgb,
     rgb_to_gray
 } ColorSpace;
+
 typedef enum
 {
     opening = 2
@@ -30,26 +31,13 @@ typedef enum
 static int IMG_HEIGHT, IMG_WIDTH;
 
 //functions
-void convert_to_gray_scale(Mat &, Mat &, ColorSpace);
-void make_split_window(Mat &, Mat &, Mat &);
+void TransformColors(Mat &, Mat &, ColorSpace);
+
+void CreateSplitWindow(Mat &, Mat &, Mat &);
+
+void DrawAxis(Mat& img, Point p, Point q, Scalar colour, const float scale = 0.2);
 
 
-void drawAxis(Mat& img, Point p, Point q, Scalar colour, const float scale = 0.2)
-{
-	double angle = atan2((double)p.y - q.y, (double)p.x - q.x); // angle in radians
-	double hypotenuse = sqrt((double)(p.y - q.y) * (p.y - q.y) + (p.x - q.x) * (p.x - q.x));
-	// Here we lengthen the arrow by a factor of scale
-	q.x = (int)(p.x - scale * hypotenuse * cos(angle));
-	q.y = (int)(p.y - scale * hypotenuse * sin(angle));
-	line(img, p, q, colour, 1, LINE_AA);
-	// create the arrow hooks
-	p.x = (int)(q.x + 9 * cos(angle + CV_PI / 4));
-	p.y = (int)(q.y + 9 * sin(angle + CV_PI / 4));
-	line(img, p, q, colour, 1, LINE_AA);
-	p.x = (int)(q.x + 9 * cos(angle - CV_PI / 4));
-	p.y = (int)(q.y + 9 * sin(angle - CV_PI / 4));
-	line(img, p, q, colour, 1, LINE_AA);
-}
 int main(int argc, char **argv)
 {
     Ptr<BackgroundSubtractor> pBackSub;
@@ -78,7 +66,7 @@ int main(int argc, char **argv)
     Mat concatenated_window_frame(cv::Size(IMG_WIDTH * 2, IMG_HEIGHT), CV_8UC3);
     int morph_elem = j["morph_element"];    // 0
     int morph_size = j["morph_point_size"]; // 3
-    int operation = MorphType::opening;
+    int operation = MORPH_OPEN;
     //Sobel
     Mat grad_x, grad_y, grad;
     Mat abs_grad_x, abs_grad_y;
@@ -98,7 +86,7 @@ int main(int argc, char **argv)
         // resize frame optional
         resize(frame, frame, Size(IMG_WIDTH, IMG_HEIGHT));
         // convert to gray scale
-        convert_to_gray_scale(frame, frame_bw, rgb_to_gray);
+        TransformColors(frame, frame_bw, rgb_to_gray);
         // Histogram Equilization <NOT REQUIRED>
         if (j["bin_thresh"])
         {
@@ -181,7 +169,7 @@ int main(int argc, char **argv)
 
 
 			Point p1 = cntr + 0.02 * Point(static_cast<int>(eigen_vecs[0].x * eigen_val[0]), static_cast<int>(eigen_vecs[0].y * eigen_val[0]));
-			drawAxis(frame, cntr, p1, Scalar(0, 255, 0), 1);
+			DrawAxis(frame, cntr, p1, Scalar(0, 255, 0), 1);
 		}
 
 		// Clear lines and points
@@ -189,8 +177,8 @@ int main(int argc, char **argv)
         lines.clear();
 
         // Rendering stage
-        convert_to_gray_scale(frame_bw, frame_bw, gray_to_rgb); // mandatory step so that concatenated_window_frame has same color Channel
-        make_split_window(frame, frame_bw, concatenated_window_frame);
+        TransformColors(frame_bw, frame_bw, gray_to_rgb); // mandatory step so that concatenated_window_frame has same color Channel
+        CreateSplitWindow(frame, frame_bw, concatenated_window_frame);
 
         // show frame
         imshow("Display window", concatenated_window_frame);
@@ -200,7 +188,7 @@ int main(int argc, char **argv)
     }
 }
 
-void convert_to_gray_scale(Mat &frame, Mat &output_fr, ColorSpace c) // TODO : add all conversions for transforming color space
+void TransformColors(Mat &frame, Mat &output_fr, ColorSpace c) // TODO : add all conversions for transforming color space
 {
     switch (c)
     {
@@ -213,8 +201,26 @@ void convert_to_gray_scale(Mat &frame, Mat &output_fr, ColorSpace c) // TODO : a
     }
 }
 
-void make_split_window(Mat &m1, Mat &m2, Mat &ccat_frame)
+void CreateSplitWindow(Mat &m1, Mat &m2, Mat &ccat_frame)
 {
     m1.copyTo(ccat_frame(Rect(0, 0, IMG_WIDTH, IMG_HEIGHT)));
     m2.copyTo(ccat_frame(Rect(IMG_WIDTH, 0, IMG_WIDTH, IMG_HEIGHT)));
+}
+
+// A temperory method, we might not need it.
+void DrawAxis(Mat& img, Point p, Point q, Scalar colour, const float scale)
+{
+	double angle = atan2((double)p.y - q.y, (double)p.x - q.x); // angle in radians
+	double hypotenuse = sqrt((double)(p.y - q.y) * (p.y - q.y) + (p.x - q.x) * (p.x - q.x));
+	// Here we lengthen the arrow by a factor of scale
+	q.x = (int)(p.x - scale * hypotenuse * cos(angle));
+	q.y = (int)(p.y - scale * hypotenuse * sin(angle));
+	line(img, p, q, colour, 1, LINE_AA);
+	// create the arrow hooks
+	p.x = (int)(q.x + 9 * cos(angle + CV_PI / 4));
+	p.y = (int)(q.y + 9 * sin(angle + CV_PI / 4));
+	line(img, p, q, colour, 1, LINE_AA);
+	p.x = (int)(q.x + 9 * cos(angle - CV_PI / 4));
+	p.y = (int)(q.y + 9 * sin(angle - CV_PI / 4));
+	line(img, p, q, colour, 1, LINE_AA);
 }

@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     // declarations
     const string filename = j["data"];
     // VideoCapture capture(filename);
-    VideoCapture capture("data/videos/1.mp4");
+    VideoCapture capture(filename);
     if (!capture.isOpened())
     {
         cerr << "Unable to open video file" << endl;
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
         // convert to gray scale
         convert_to_gray_scale(frame, frame_bw, rgb_to_gray);
         // Histogram Equilization <NOT REQUIRED>
-        if (j["hist_equlalize"])
+        if (j["bin_thresh"])
         {
             equalizeHist(frame_bw, frame_bw);
         }
@@ -99,7 +99,6 @@ int main(int argc, char **argv)
         Canny(frame_bw, frame_bw, j["canny_low_threshold"], j["canny_high_threshold"], 3);
 
         // Hough Transform to fit line
-        // vector<Vec2f> lines;                                     // will hold the results of the detection
         HoughLines(frame_bw, lines, 1, CV_PI / 180, j["hough_threshold"], 0, 0); // runs the actual detection
 
         for (size_t i = 0; i < lines.size(); i++)

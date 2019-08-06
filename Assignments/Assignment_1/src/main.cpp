@@ -30,7 +30,7 @@ static int IMG_HEIGHT, IMG_WIDTH;
 
 //functions
 void convert_to_gray_scale(Mat &, Mat &, ColorSpace);
-void show_split_window(Mat &, Mat &, Mat &);
+void make_split_window(Mat &, Mat &, Mat &);
 int main(int argc, char **argv)
 {
     Ptr<BackgroundSubtractor> pBackSub;
@@ -75,7 +75,10 @@ int main(int argc, char **argv)
         // convert to gray scale
         convert_to_gray_scale(frame, frame_bw, rgb_to_gray);
         // Histogram Equilization <NOT REQUIRED>
-        // equalizeHist(frame_bw, frame_bw);
+        if (j["hist_equlalize"])
+        {
+            equalizeHist(frame_bw, frame_bw);
+        }
         // background sub
         pBackSub->apply(frame_bw, frame_bw);
 
@@ -84,7 +87,10 @@ int main(int argc, char **argv)
         morphologyEx(frame_bw, frame_bw, operation, element);
 
         //Thresholding to get rid of shadows
-        // threshold(frame_bw, frame_bw, j["img_min_thresh"], j["img_max_thresh"], 0);
+        if (j["bin_thresh"])
+        {
+            threshold(frame_bw, frame_bw, j["img_min_thresh"], j["img_max_thresh"], 0);
+        }
 
         // A round of gauss blur
         blur(frame_bw, frame_bw, Size(j["gaussian_kernel_size"], j["gaussian_kernel_size"]));
@@ -112,7 +118,7 @@ int main(int argc, char **argv)
         lines.clear();
         // Rendering stage
         convert_to_gray_scale(frame_bw, frame_bw, gray_to_rgb); // mandatory step so that concatenated_window_frame has same color Channel
-        show_split_window(frame, frame_bw, concatenated_window_frame);
+        make_split_window(frame, frame_bw, concatenated_window_frame);
 
         // show frame
         imshow("Display window", concatenated_window_frame);
@@ -135,7 +141,7 @@ void convert_to_gray_scale(Mat &frame, Mat &output_fr, ColorSpace c) // TODO : a
     }
 }
 
-void show_split_window(Mat &m1, Mat &m2, Mat &ccat_frame)
+void make_split_window(Mat &m1, Mat &m2, Mat &ccat_frame)
 {
     m1.copyTo(ccat_frame(Rect(0, 0, IMG_WIDTH, IMG_HEIGHT)));
     m2.copyTo(ccat_frame(Rect(IMG_WIDTH, 0, IMG_WIDTH, IMG_HEIGHT)));

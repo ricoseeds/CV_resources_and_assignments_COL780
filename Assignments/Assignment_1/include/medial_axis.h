@@ -45,11 +45,11 @@ public:
 
 	void SetThresholding(bool flag) { _apply_thresholding = flag; }
 
-	void DetectLines(cv::Mat& frame, std::vector<cv::Vec2f>& detected_lines);
+	void SetBackGroundSubtractor(cv::Ptr<cv::BackgroundSubtractor> pBackSub) { _pBackSub = pBackSub; }
 
-	void GetMedialAxis(cv::Mat& frame_bw, std::vector<cv::Vec2f>& lines, cv::Point2d& medial_axis, cv::Point2d& object_center);
+	void DetectLines(cv::Mat& frame, cv::Mat& out_frame, std::vector<cv::Vec2f>& detected_lines);
 
-
+	void GetMedialAxis(cv::Mat& frame_bw, std::vector<cv::Vec2f>& lines, cv::Point2d& medial_axis, cv::Point& object_center, double largest_eigen_value);
 
 private : // class attributes
 
@@ -74,5 +74,7 @@ private : // class attributes
 	double _canny_high = 200.0;
 
 	int _hough_thresold = 50;
+
+	cv::Ptr<cv::BackgroundSubtractor> _pBackSub = nullptr;
 
 };

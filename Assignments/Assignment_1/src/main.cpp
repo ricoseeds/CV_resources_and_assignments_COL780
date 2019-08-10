@@ -88,15 +88,12 @@ int main(int argc, char **argv)
 		Mat out_frame;
 		medial_axis.DetectLines(frame, out_frame, lines);
 
-		std::cout << lines.size();
-
 		if (!lines.empty()) {
 			Point2d medial_vector(0,0);
 			Point object_center(0,0);
 			double largest_eigen_value = 0.0;
-			medial_axis.GetMedialAxis(frame, lines, medial_vector, object_center, largest_eigen_value);
 
-			//Point2d p1 = object_center + 0.02 * Point2d((medial_vector.x * largest_eigen_value), medial_vector.y * largest_eigen_value);
+			medial_axis.GetMedialAxis(frame, lines, medial_vector, object_center, largest_eigen_value);
 
 			Point p1 = object_center + 0.02 * Point(static_cast<int>(medial_vector.x * largest_eigen_value), static_cast<int>(medial_vector.y * largest_eigen_value));
 			DrawAxis(frame, object_center, p1, Scalar(0, 255, 0), 1);
@@ -107,11 +104,20 @@ int main(int argc, char **argv)
 
         // Rendering stage
         // mandatory step so that concatenated_window_frame has same color Channel
-		cvtColor(out_frame, out_frame, cv::COLOR_GRAY2RGB);
-        //CreateSplitWindow(frame, out_frame, concatenated_window_frame);
+		cvtColor(out_frame, out_frame, COLOR_GRAY2BGR);
+		
+		Mat matDst(Size(frame.cols * 2, frame.rows), frame.type(), Scalar::all(0));
+		Mat matRoi = matDst(Rect(0, 0, frame.cols, frame.rows));
+		frame.copyTo(matRoi);
+		matRoi = matDst(Rect(frame.cols, 0, frame.cols, frame.rows));
+		out_frame.copyTo(matRoi);
+
 
         // show frame
-        imshow("Display window", frame);
+        imshow("Display window", matDst);
+
+		// show frame
+		//imshow("Display window 2", out_frame);
 
         int keyboard = waitKey(1); // ?
         if (keyboard == 'q' || keyboard == 27)
@@ -120,7 +126,7 @@ int main(int argc, char **argv)
 }
 
 
-void CreateSplitWindow(Mat &m1, Mat &m2, Mat &ccat_frame)
+void CreateSplitWindow(Mat& m1, Mat& m2, Mat& ccat_frame)
 {
     m1.copyTo(ccat_frame(Rect(0, 0, IMG_WIDTH, IMG_HEIGHT)));
     m2.copyTo(ccat_frame(Rect(IMG_WIDTH, 0, IMG_WIDTH, IMG_HEIGHT)));

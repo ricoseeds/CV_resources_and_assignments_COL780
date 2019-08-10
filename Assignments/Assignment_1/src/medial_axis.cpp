@@ -3,14 +3,14 @@
 using namespace cv;
 
 
-void MedialAxis_C::GetMedialAxis(cv::Mat& frame_bw, std::vector<Vec2f>& lines, Point2d& medial_axis, Point& object_center, double largest_eigen_value)
+void MedialAxis_C::GetMedialAxis(cv::Mat& frame_bw, std::vector<Vec2f>& lines, Point2d& medial_axis, Point& object_center, double& largest_eigen_value)
 {
 	// Get Detected line points
 	std::vector<Point> line_points;
-	for (size_t i = 0; i < lines.size(); i++)
-	{
+	for (size_t i = 0; i < lines.size(); i++) {
 		// std::cout << " No of Lines " << lines.size() << "\n";
-		float rho = lines[i][0], theta = lines[i][1];
+		float rho = lines[i][0];
+		float theta = lines[i][1];
 		Point pt1, pt2;
 		double a = cos(theta), b = sin(theta);
 		double x0 = a * rho, y0 = b * rho;

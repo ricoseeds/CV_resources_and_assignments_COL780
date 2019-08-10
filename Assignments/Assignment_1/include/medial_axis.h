@@ -49,7 +49,7 @@ public:
 
 	void DetectLines(cv::Mat& frame, cv::Mat& out_frame, std::vector<cv::Vec2f>& detected_lines);
 
-	void GetMedialAxis(cv::Mat& frame_bw, std::vector<cv::Vec2f>& lines, cv::Point2d& medial_axis, cv::Point& object_center, double largest_eigen_value);
+	void GetMedialAxis(cv::Mat& frame_bw, std::vector<cv::Vec2f>& lines, cv::Point2d& medial_axis, cv::Point& object_center, double& largest_eigen_value);
 
 private : // class attributes
 

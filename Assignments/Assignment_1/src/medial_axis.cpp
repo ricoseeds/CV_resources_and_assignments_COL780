@@ -36,7 +36,6 @@ void MedialAxis_C::GetMedialAxis(cv::Mat& frame_bw, std::vector<Vec2f>& lines, P
 	}
 
 	if (!line_points.empty()) {
-		// std::cout << line_points.size() << std::endl;
 		//Perform PCA analysis
 		Mat data_pts = Mat(line_points.size(), 2, CV_64F);
 		for (int i = 0; i < data_pts.rows; i++) {

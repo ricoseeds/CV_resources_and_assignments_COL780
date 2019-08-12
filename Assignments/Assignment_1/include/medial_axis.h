@@ -1,8 +1,5 @@
 #pragma once
 
-
-#include "json.hpp"
-
 // cv headers
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -12,6 +9,7 @@
 #include <opencv2/video.hpp>
 
 
+// stl header
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -43,16 +41,17 @@ private : // Internal methods
 
 public: // Public Methods
 
+	void DetectLines(cv::Mat& frame, cv::Mat& out_frame, std::vector<cv::Vec2f>& detected_lines);
+
+	void GetMedialAxis(cv::Mat& frame_bw, std::vector<cv::Vec2f>& lines, cv::Point2d& medial_axis, cv::Point& object_center, double& largest_eigen_value);
+
+public : // Setters/Getters
 
 	void SetHistogramEqualization(bool flag) { _apply_histogram_equalization = flag; }
 
 	void SetThresholding(bool flag) { _apply_thresholding = flag; }
 
 	void SetBackGroundSubtractor(cv::Ptr<cv::BackgroundSubtractor> pBackSub) { _pBackSub = pBackSub; }
-
-	void DetectLines(cv::Mat& frame, cv::Mat& out_frame, std::vector<cv::Vec2f>& detected_lines);
-
-	void GetMedialAxis(cv::Mat& frame_bw, std::vector<cv::Vec2f>& lines, cv::Point2d& medial_axis, cv::Point& object_center, double& largest_eigen_value);
 
 private : // class attributes
 
@@ -65,10 +64,12 @@ private : // class attributes
 	unsigned int _morph_size = 0;
 	int _operation = cv::MORPH_OPEN;
 
+	// histogram related
 	bool _apply_histogram_equalization = false;
+	
+	// Image thresholding params
 	bool _apply_thresholding = false;
 
-	// Image thresholding params
 	double _threshold = 0.0;
 	double _threshold_max = 255.0;
 
@@ -79,8 +80,10 @@ private : // class attributes
 	double _canny_low = 100.0;
 	double _canny_high = 200.0;
 
+	// For hough lines
 	int _hough_thresold = 50;
 
+	// Backgrounnd subtractor.
 	cv::Ptr<cv::BackgroundSubtractor> _pBackSub = nullptr;
 
 };

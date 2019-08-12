@@ -19,6 +19,8 @@ void MedialAxis_C::GetMedialAxis(cv::Mat& frame_bw, std::vector<Vec2f>& lines, P
 		pt2.x = cvRound(x0 - 500 * (-b));
 		pt2.y = cvRound(y0 - 500 * (a));
 
+		line(frame_bw, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
+
 		// Get all line points
 		// Another approach can be get all 
 		// points from the image that are near to these detected lines.

@@ -116,9 +116,6 @@ int main(int argc, char **argv)
         // show frame
         imshow("Display window", matDst);
 
-		// show frame
-		//imshow("Display window 2", out_frame);
-
         int keyboard = waitKey(1); // ?
         if (keyboard == 'q' || keyboard == 27)
             break;

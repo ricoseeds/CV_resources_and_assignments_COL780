@@ -30,14 +30,14 @@ void DrawAxis(Mat& img, Point p, Point q, Scalar colour, const float scale)
 	// Here we lengthen the arrow by a factor of scale
 	q.x = (int)(p.x - scale * hypotenuse * cos(angle));
 	q.y = (int)(p.y - scale * hypotenuse * sin(angle));
-	line(img, p, q, colour, 1, LINE_AA);
+	line(img, p, q, colour, 2, LINE_AA);
 	// create the arrow hooks
 	p.x = (int)(q.x + 9 * cos(angle + CV_PI / 4));
 	p.y = (int)(q.y + 9 * sin(angle + CV_PI / 4));
-	line(img, p, q, colour, 1, LINE_AA);
+	line(img, p, q, colour, 2, LINE_AA);
 	p.x = (int)(q.x + 9 * cos(angle - CV_PI / 4));
 	p.y = (int)(q.y + 9 * sin(angle - CV_PI / 4));
-	line(img, p, q, colour, 1, LINE_AA);
+	line(img, p, q, colour, 2, LINE_AA);
 }
 
 }

@@ -2,6 +2,9 @@
 
 using namespace cv;
 
+// Uncomment this to enable them
+// #define DRAW_LINES 
+// #define DUMP_IMAGE3 
 
 void MedialAxis_C::GetMedialAxis(cv::Mat& frame_bw, std::vector<Vec2f>& lines, Point2d& medial_axis, Point& object_center, double& largest_eigen_value)
 {
@@ -19,8 +22,9 @@ void MedialAxis_C::GetMedialAxis(cv::Mat& frame_bw, std::vector<Vec2f>& lines, P
 		pt2.x = cvRound(x0 - 500 * (-b));
 		pt2.y = cvRound(y0 - 500 * (a));
 
+#ifdef DRAW_LINES
 		line(frame_bw, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
-
+#endif
 		// Get all line points
 		// Another approach can be get all 
 		// points from the image that are near to these detected lines.
@@ -62,7 +66,6 @@ void MedialAxis_C::DetectLines(Mat& frame, Mat& out_frame, std::vector<Vec2f>& d
 {
 	cv::Mat resized_frame;
 	resize(frame, frame, Size(_image_width, _image_height)); //todo: Is it not important to pass on different mats?
-
 #ifdef DUMP_IMAGES
 	imwrite("C:/Projects/Acads/out/1.jpg", frame);
 #endif
@@ -70,10 +73,11 @@ void MedialAxis_C::DetectLines(Mat& frame, Mat& out_frame, std::vector<Vec2f>& d
 	// Convert to grey scale
 	cv::Mat grey_frame;
 	TransformColors(frame, grey_frame, COLOR_BGR2GRAY);
-
 #ifdef DUMP_IMAGES
 	imwrite("C:/Projects/Acads/out/2.jpg", grey_frame);
 #endif
+
+
 	// Histogram equalization
 	if (_apply_histogram_equalization) {
 		equalizeHist(grey_frame, grey_frame);
@@ -82,8 +86,6 @@ void MedialAxis_C::DetectLines(Mat& frame, Mat& out_frame, std::vector<Vec2f>& d
 	// Get foreground image
 	cv::Mat fg_image;
 	_pBackSub->apply(grey_frame, fg_image);
-
-
 #ifdef DUMP_IMAGES
 	imwrite("C:/Projects/Acads/out/fg_image.jpg", fg_image);
 #endif
@@ -92,8 +94,6 @@ void MedialAxis_C::DetectLines(Mat& frame, Mat& out_frame, std::vector<Vec2f>& d
 	cv::Mat filtered_image;
 	Mat element = getStructuringElement(_morph_elem, Size(2 * _morph_size + 1, 2 * _morph_size + 1), Point(_morph_size, _morph_size)); // TUNE
 	morphologyEx(fg_image, filtered_image, _operation, element);
-
-
 #ifdef DUMP_IMAGES
 	imwrite("C:/Projects/Acads/out/morphed_filtered_image.jpg", fg_image);
 #endif
@@ -116,7 +116,7 @@ void MedialAxis_C::DetectLines(Mat& frame, Mat& out_frame, std::vector<Vec2f>& d
 
 
 #ifdef DUMP_IMAGES
-	imwrite("C:/Projects/Acads/out/fina_filtered_image.jpg", filtered_image);
+	imwrite("C:/Projects/Acads/out/final_filtered_image.jpg", filtered_image);
 #endif
 
 	// Hough Transform to fit line

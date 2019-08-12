@@ -22,9 +22,12 @@ class MedialAxis_C {
 
 public : // Constructor/ Destructor 
 
-	MedialAxis_C() = default;
+	// Delete constructors not required.
+	MedialAxis_C() = delete;
+	MedialAxis_C(const MedialAxis_C&) = delete;
+	MedialAxis_C& operator=(const MedialAxis_C&) = delete;
 
-	MedialAxis_C(unsigned int image_width, unsigned int image_height,
+	explicit MedialAxis_C(unsigned int image_width, unsigned int image_height,
 		unsigned int morph_elem, unsigned int morph_size,
 		unsigned int morph_operation, double threshold,
 		double threshold_max, double canny_low, double canny_high, int hough_thresold) :
@@ -34,12 +37,12 @@ public : // Constructor/ Destructor
 		_canny_low(canny_low), _canny_high(canny_high), _hough_thresold(hough_thresold){}
 
 
-private : // Public Methods
-	
+private : // Internal methods
 	
 	void TransformColors(cv::Mat& in_frame, cv::Mat& out_frame, cv::ColorConversionCodes color_code);
 
-public:
+public: // Public Methods
+
 
 	void SetHistogramEqualization(bool flag) { _apply_histogram_equalization = flag; }
 

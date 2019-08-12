@@ -4,21 +4,8 @@ using namespace cv;
 using namespace std;
 using json = nlohmann::json;
 
-typedef enum
-{
-    gray_to_rgb,
-    rgb_to_gray
-} ColorSpace;
 
-typedef enum
-{
-    opening = 2
-} MorphType;
-
-static int IMG_HEIGHT, IMG_WIDTH;
-
-//functions
-
+// Helper functions
 void CreateSplitWindow(Mat &, Mat &, Mat &);
 
 void DrawAxis(Mat& img, Point p, Point q, Scalar colour, const float scale = 0.2);
@@ -26,20 +13,17 @@ void DrawAxis(Mat& img, Point p, Point q, Scalar colour, const float scale = 0.2
 
 int main(int argc, char **argv)
 {
-   /* Ptr<BackgroundSubtractor> pBackSub;
-    pBackSub = createBackgroundSubtractorMOG2();
-*/
 #ifdef _MSC_VER
     std::ifstream ifile("C:/Projects/Acads/COL780/Assignments/Assignment_1/input/tuning_params.json");
 #else
 	std::ifstream ifile("Assignments/Assignment_1/input/tuning_params.json");
 #endif
 
-	// Get configuration
+	// Get algorithm configuration
     json algo_configs;
     ifile >> algo_configs;
     
-	// declarations
+	// Declarations
     const string filename = algo_configs["data"];
     
 	// Create MOG2 background subractor
@@ -54,29 +38,28 @@ int main(int argc, char **argv)
         return 0;
     }
     
-	Mat frame;
-	IMG_HEIGHT = algo_configs["resize_height"];
-	IMG_WIDTH = algo_configs["resize_width"];
-	Mat concatenated_window_frame(cv::Size(IMG_WIDTH * 2, IMG_HEIGHT), CV_8UC3);
-
-	////Sobel
+	// We may use Sobel as well.
  //   Mat grad_x, grad_y, grad;
  //   Mat abs_grad_x, abs_grad_y;
  //   int scale = 1;
  //   int delta = 0;
  //   int ddepth = CV_16S;
 
+	Mat frame;
     vector<Vec2f> lines;
 
+	// Create the object of Medial Axis detection algorithm
 	MedialAxis_C medial_axis(algo_configs["resize_width"], algo_configs["resize_height"],
 		algo_configs["morph_element"], algo_configs["morph_point_size"], MORPH_OPEN,
 		algo_configs["img_min_thresh"], algo_configs["img_max_thresh"],
 		algo_configs["canny_low_threshold"], algo_configs["canny_high_threshold"],
 		algo_configs["hough_threshold"]);
 
+	medial_axis.SetBackGroundSubtractor(pBackSub);
+
+	// Algorithmic pipeline settings for optional algorithms.
 	medial_axis.SetHistogramEqualization(false);
 	medial_axis.SetThresholding(false);
-	medial_axis.SetBackGroundSubtractor(pBackSub);
 
     while (true) {
         capture >> frame;
@@ -85,48 +68,53 @@ int main(int argc, char **argv)
 		}
 
         namedWindow("Display window", 0);
-		Mat out_frame;
-		medial_axis.DetectLines(frame, out_frame, lines);
 
-		if (!lines.empty()) {
-			Point2d medial_vector(0,0);
-			Point object_center(0,0);
-			double largest_eigen_value = 0.0;
+		// Main processing block
+		{
+			// Detect lines and also get the processed frame as output.
+			Mat out_frame;
+			medial_axis.DetectLines(frame, out_frame, lines);
 
-			medial_axis.GetMedialAxis(frame, lines, medial_vector, object_center, largest_eigen_value);
+			// Find Medial axis of line
+			if (!lines.empty()) {
+				Point2d medial_vector(0, 0);
+				Point object_center(0, 0);
+				double largest_eigen_value = 0.0;
 
-			Point p1 = object_center + 0.02 * Point(static_cast<int>(medial_vector.x * largest_eigen_value), static_cast<int>(medial_vector.y * largest_eigen_value));
-			DrawAxis(frame, object_center, p1, Scalar(0, 255, 0), 1);
+				medial_axis.GetMedialAxis(frame, lines, medial_vector, object_center, largest_eigen_value);
 
-			// Clear lines
-			lines.clear();
-		}
+				Point p1 = object_center + 0.02 * Point(static_cast<int>(medial_vector.x * largest_eigen_value), static_cast<int>(medial_vector.y * largest_eigen_value));
+				DrawAxis(frame, object_center, p1, Scalar(0, 255, 0), 1);
 
-        // Rendering stage
-        // mandatory step so that concatenated_window_frame has same color Channel
-		cvtColor(out_frame, out_frame, COLOR_GRAY2BGR);
+				// Clear lines
+				lines.clear();
+			}
+
+			// Rendering stage
+			Mat matDst(Size(frame.cols * 2, frame.rows), frame.type(), Scalar::all(0));
+			CreateSplitWindow(frame, out_frame, matDst);
+
+			// show frame
+			imshow("Display window", matDst);
 		
-		Mat matDst(Size(frame.cols * 2, frame.rows), frame.type(), Scalar::all(0));
-		Mat matRoi = matDst(Rect(0, 0, frame.cols, frame.rows));
-		frame.copyTo(matRoi);
-		matRoi = matDst(Rect(frame.cols, 0, frame.cols, frame.rows));
-		out_frame.copyTo(matRoi);
-
-
-        // show frame
-        imshow("Display window", matDst);
-
+		}
+		
         int keyboard = waitKey(1); // ?
-        if (keyboard == 'q' || keyboard == 27)
-            break;
+		if ( keyboard == 'q' || keyboard == 27 ) {
+			break;
+		}
+        
     }
 }
 
 
-void CreateSplitWindow(Mat& m1, Mat& m2, Mat& ccat_frame)
+void CreateSplitWindow(Mat& frame, Mat& out_frame, Mat& matDst)
 {
-    m1.copyTo(ccat_frame(Rect(0, 0, IMG_WIDTH, IMG_HEIGHT)));
-    m2.copyTo(ccat_frame(Rect(IMG_WIDTH, 0, IMG_WIDTH, IMG_HEIGHT)));
+	cvtColor(out_frame, out_frame, COLOR_GRAY2BGR);
+	Mat matRoi = matDst(Rect(0, 0, frame.cols, frame.rows));
+	frame.copyTo(matRoi);
+	matRoi = matDst(Rect(frame.cols, 0, frame.cols, frame.rows));
+	out_frame.copyTo(matRoi);
 }
 
 // A temperory method, we might not need it.

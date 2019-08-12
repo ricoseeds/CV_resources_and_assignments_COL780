@@ -3,8 +3,8 @@
 using namespace cv;
 
 // Uncomment this to enable them
-// #define DRAW_LINES 
-// #define DUMP_IMAGE3 
+// #define DRAW_LINES
+// #define DUMP_IMAGE3
 
 void MedialAxis_C::GetMedialAxis(cv::Mat& frame_bw, std::vector<Vec2f>& lines, Point2d& medial_axis, Point& object_center, double& largest_eigen_value)
 {

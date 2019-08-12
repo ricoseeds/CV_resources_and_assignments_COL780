@@ -23,11 +23,11 @@ class MedialAxis_C {
 public : // Constructor/ Destructor 
 
 	// Delete constructors not required.
-	MedialAxis_C() = delete;
+	MedialAxis_C() = default;
 	MedialAxis_C(const MedialAxis_C&) = delete;
 	MedialAxis_C& operator=(const MedialAxis_C&) = delete;
 
-	explicit MedialAxis_C(unsigned int image_width, unsigned int image_height,
+	MedialAxis_C(unsigned int image_width, unsigned int image_height,
 		unsigned int morph_elem, unsigned int morph_size,
 		unsigned int morph_operation, double threshold,
 		double threshold_max, double canny_low, double canny_high, int hough_thresold) :
@@ -57,8 +57,8 @@ public: // Public Methods
 private : // class attributes
 
 	// image related
-	unsigned int _image_height = 0;
-	unsigned int _image_width = 0;
+	unsigned int _image_height = 1000;
+	unsigned int _image_width = 1000;
 
 	// morphology related
 	unsigned int _morph_elem = 0;
@@ -68,11 +68,14 @@ private : // class attributes
 	bool _apply_histogram_equalization = false;
 	bool _apply_thresholding = false;
 
+	// Image thresholding params
 	double _threshold = 0.0;
 	double _threshold_max = 255.0;
 
+	// Gaussian blur var
 	unsigned int _blur_size{5};
 
+	// Canny edge related
 	double _canny_low = 100.0;
 	double _canny_high = 200.0;
 

@@ -17,6 +17,8 @@ using namespace cv;
 using namespace std;
 using json = nlohmann::json;
 
+#define DISPLAY_LINES
+
 typedef enum
 {
     gray_to_rgb,
@@ -40,14 +42,14 @@ void drawAxis(Mat &img, Point p, Point q, Scalar colour, const float scale = 0.2
     // Here we lengthen the arrow by a factor of scale
     q.x = (int)(p.x - scale * hypotenuse * cos(angle));
     q.y = (int)(p.y - scale * hypotenuse * sin(angle));
-    line(img, p, q, colour, 1, LINE_AA);
+    cv::line(img, p, q, colour, 2, LINE_AA);
     // create the arrow hooks
     p.x = (int)(q.x + 9 * cos(angle + CV_PI / 4));
     p.y = (int)(q.y + 9 * sin(angle + CV_PI / 4));
-    line(img, p, q, colour, 1, LINE_AA);
+    cv::line(img, p, q, colour, 2, LINE_AA);
     p.x = (int)(q.x + 9 * cos(angle - CV_PI / 4));
     p.y = (int)(q.y + 9 * sin(angle - CV_PI / 4));
-    line(img, p, q, colour, 1, LINE_AA);
+    cv::line(img, p, q, colour, 2, LINE_AA);
 }
 int main(int argc, char **argv)
 {
@@ -60,10 +62,10 @@ int main(int argc, char **argv)
     std::ifstream ifile("Assignments/Assignment_1/input/tuning_params.json");
 #endif
 
-    json j;
-    ifile >> j;
+    json algorithm_parameters_parser;
+    ifile >> algorithm_parameters_parser;
     // declarations
-    const string filename = j["data"];
+    const string filename = algorithm_parameters_parser["data"];
     // VideoCapture capture(filename);
     VideoCapture capture(filename);
     if (!capture.isOpened())
@@ -71,12 +73,12 @@ int main(int argc, char **argv)
         cerr << "Unable to open video file" << endl;
         return 0;
     }
-    IMG_HEIGHT = j["resize_height"];
-    IMG_WIDTH = j["resize_width"];
+    IMG_HEIGHT = algorithm_parameters_parser["resize_height"];
+    IMG_WIDTH = algorithm_parameters_parser["resize_width"];
     Mat frame, frame_bw, mog2_mask;
     Mat concatenated_window_frame(cv::Size(IMG_WIDTH * 2, IMG_HEIGHT), CV_8UC3);
-    int morph_elem = j["morph_element"];    // 0
-    int morph_size = j["morph_point_size"]; // 3
+    int morph_elem = algorithm_parameters_parser["morph_element"];    // 0
+    int morph_size = algorithm_parameters_parser["morph_point_size"]; // 3
     int operation = MorphType::opening;
     //Sobel
     Mat grad_x, grad_y, grad;
@@ -99,7 +101,7 @@ int main(int argc, char **argv)
         // convert to gray scale
         convert_to_gray_scale(frame, frame_bw, rgb_to_gray);
         // Histogram Equilization <NOT REQUIRED>
-        if (j["bin_thresh"])
+        if (algorithm_parameters_parser["bin_thresh"])
         {
             equalizeHist(frame_bw, frame_bw);
         }
@@ -111,19 +113,19 @@ int main(int argc, char **argv)
         morphologyEx(frame_bw, frame_bw, operation, element);
 
         //Thresholding to get rid of shadows
-        if (j["bin_thresh"])
+        if (algorithm_parameters_parser["bin_thresh"])
         {
-            threshold(frame_bw, frame_bw, j["img_min_thresh"], j["img_max_thresh"], 0);
+            threshold(frame_bw, frame_bw, algorithm_parameters_parser["img_min_thresh"], algorithm_parameters_parser["img_max_thresh"], 0);
         }
 
         // A round of gauss blur
-        blur(frame_bw, frame_bw, Size(j["gaussian_kernel_size"], j["gaussian_kernel_size"]));
+        blur(frame_bw, frame_bw, Size(algorithm_parameters_parser["gaussian_kernel_size"], algorithm_parameters_parser["gaussian_kernel_size"]));
 
         // Canny edge detector
-        Canny(frame_bw, frame_bw, j["canny_low_threshold"], j["canny_high_threshold"], 3);
+        Canny(frame_bw, frame_bw, algorithm_parameters_parser["canny_low_threshold"], algorithm_parameters_parser["canny_high_threshold"], 3);
 
         // Hough Transform to fit line
-        HoughLines(frame_bw, lines, 1, CV_PI / 180, j["hough_threshold"], 0, 0); // runs the actual detection
+        HoughLines(frame_bw, lines, 1, CV_PI / 180, algorithm_parameters_parser["hough_threshold"], 0, 0); // runs the actual detection
 
         // Get Detected line points
         std::vector<Point> line_points;
@@ -138,7 +140,7 @@ int main(int argc, char **argv)
             pt1.y = cvRound(y0 + 500 * (a));
             pt2.x = cvRound(x0 - 500 * (-b));
             pt2.y = cvRound(y0 - 500 * (a));
-            if (j["show_hough_lines"])
+            if (algorithm_parameters_parser["show_hough_lines"])
                 line(frame, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
             // Get all line points
             // Another approach can be get all points from the image that are near to these detected lines.

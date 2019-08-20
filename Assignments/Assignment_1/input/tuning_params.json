@@ -12,5 +12,5 @@
     "hough_threshold": 170,
     "bin_thresh": false,
     "hist_equlalize": false,
-    "show_hough_lines": false
+    "show_hough_lines": true
 }

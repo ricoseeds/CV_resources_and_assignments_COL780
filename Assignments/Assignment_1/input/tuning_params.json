@@ -9,9 +9,9 @@
     "gaussian_kernel_size": 5,
     "img_min_thresh": 230,
     "img_max_thresh": 255,
-    "hough_threshold": 170,
+    "hough_threshold": 100,
     "bin_thresh": true,
     "hist_equlalize": false,
-    "show_hough_lines": true,
+    "show_hough_lines": false,
     "compute_tool_tip": true
 }

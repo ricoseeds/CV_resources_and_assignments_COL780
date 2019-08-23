@@ -123,7 +123,7 @@ int main(int argc, char **argv)
         // Hough Transform to fit line
         HoughLines(frame_bw, lines, 1, CV_PI / 180, algorithm_parameters_parser["hough_threshold"], 0, 0); // runs the actual detection
         // vector<Vec4i> lines;
-        HoughLinesP(frame_bw, line_segs, 1, CV_PI / 180, algorithm_parameters_parser["hough_threshold"], 30, 10);
+        HoughLinesP(frame_bw, line_segs, 1, CV_PI / 180, algorithm_parameters_parser["hough_threshold"], 20, 15);
         float y_max, x_max;
         // dont detect tooltip if lines.size() is 0
         can_detect_tip = (lines.size() && line_segs.size() ? true : false);
@@ -164,10 +164,10 @@ int main(int argc, char **argv)
             Point pt1, pt2;
             double a = cos(theta), b = sin(theta);
             double x0 = a * rho, y0 = b * rho;
-            pt1.x = cvRound(x0 + 500 * (-b));
-            pt1.y = cvRound(y0 + 500 * (a));
-            pt2.x = cvRound(x0 - 500 * (-b));
-            pt2.y = cvRound(y0 - 500 * (a));
+            pt1.x = cvRound(x0 + 800 * (-b));
+            pt1.y = cvRound(y0 + 800 * (a));
+            pt2.x = cvRound(x0 - 800 * (-b));
+            pt2.y = cvRound(y0 - 800 * (a));
             if (algorithm_parameters_parser["show_hough_lines"])
                 line(frame, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
             // Get all line points
@@ -208,8 +208,10 @@ int main(int argc, char **argv)
 
             Point medial_p1 = cntr + 0.5 * Point(static_cast<int>(eigen_vecs[0].x * eigen_val[0]), static_cast<int>(eigen_vecs[0].y * eigen_val[0]));
             Point medial_p2 = cntr + -0.5 * Point(static_cast<int>(eigen_vecs[0].x * eigen_val[0]), static_cast<int>(eigen_vecs[0].y * eigen_val[0]));
-            cv::line(frame, medial_p1, medial_p2, Scalar(0, 255, 0), 2, LINE_AA);
-            cv::circle(frame, max_coord, 8, Scalar(0, 255, 0), 2);
+            // line interesection
+            float x = (((max_coord[1] - medial_p1.y) / (float)(medial_p2.y - medial_p1.y)) * (medial_p2.x - medial_p1.x)) + medial_p1.x;
+            cv::line(frame, medial_p1, Point((int)x, max_coord[1]), Scalar(0, 255, 0), 2, LINE_AA);
+            cv::circle(frame, Point((int)x, max_coord[1]), 8, Scalar(0, 255, 0), 2);
         }
 
         // Clear lines and points

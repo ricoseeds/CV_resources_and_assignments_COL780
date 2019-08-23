@@ -19,7 +19,53 @@ using namespace std;
 using json = nlohmann::json;
 
 #define DISPLAY_LINES
+class AvgCircularBuffer
+{
+    Point *CircularQ;
+    int size, count;
+    bool avg_flag;
 
+public:
+    AvgCircularBuffer(int size = 4)
+    {
+        avg_flag = false;
+        this->size = size;
+        this->count = 0;
+        CircularQ = new Point[size];
+    }
+    void en_q(Point p)
+    {
+        if (count <= size - 1)
+        {
+            CircularQ[count] = p;
+            count = (count + 1) % size;
+            if (count == size)
+            {
+                avg_flag = true;
+            }
+        }
+    }
+    float avg_val_y()
+    {
+        float accumulate_y = 0;
+        if (!avg_flag)
+        {
+            for (size_t i = 0; i < count; i++)
+            {
+                accumulate_y += CircularQ[i].y;
+            }
+            return (accumulate_y / (float)(count));
+        }
+        else
+        {
+            for (size_t i = 0; i < size; i++)
+            {
+                accumulate_y += CircularQ[i].y;
+            }
+            return (accumulate_y / (float)size);
+        }
+    }
+};
 typedef enum
 {
     gray_to_rgb,
@@ -79,6 +125,8 @@ int main(int argc, char **argv)
     bool can_detect_tip;
     std::vector<Point> tool_axis_iterator;
     std::vector<Point> line_points;
+    //TODO parameterize
+    AvgCircularBuffer averaging_buffer(algorithm_parameters_parser["averaging_window_size"]);
     while (true)
     {
         capture >> frame;
@@ -148,6 +196,7 @@ int main(int argc, char **argv)
                     max_coord[1] = y_max;
                 }
             }
+            averaging_buffer.en_q(Point(max_coord[0], max_coord[1]));
         }
         // Showing prob hough lines
         // for (size_t i = 0; i < lines.size(); i++)
@@ -209,9 +258,11 @@ int main(int argc, char **argv)
             Point medial_p1 = cntr + 0.5 * Point(static_cast<int>(eigen_vecs[0].x * eigen_val[0]), static_cast<int>(eigen_vecs[0].y * eigen_val[0]));
             Point medial_p2 = cntr + -0.5 * Point(static_cast<int>(eigen_vecs[0].x * eigen_val[0]), static_cast<int>(eigen_vecs[0].y * eigen_val[0]));
             // line interesection
-            float x = (((max_coord[1] - medial_p1.y) / (float)(medial_p2.y - medial_p1.y)) * (medial_p2.x - medial_p1.x)) + medial_p1.x;
-            cv::line(frame, medial_p1, Point((int)x, max_coord[1]), Scalar(0, 255, 0), 2, LINE_AA);
-            cv::circle(frame, Point((int)x, max_coord[1]), 8, Scalar(0, 255, 0), 2);
+            float avg_y = averaging_buffer.avg_val_y();
+            // float x = (((max_coord[1] - medial_p1.y) / (float)(medial_p2.y - medial_p1.y)) * (medial_p2.x - medial_p1.x)) + medial_p1.x;
+            float x = (((avg_y - medial_p1.y) / (float)(medial_p2.y - medial_p1.y)) * (medial_p2.x - medial_p1.x)) + medial_p1.x;
+            cv::line(frame, medial_p1, Point((int)x, avg_y), Scalar(0, 255, 0), 2, LINE_AA);
+            cv::circle(frame, Point((int)x, avg_y), 8, Scalar(0, 255, 0), 2);
         }
 
         // Clear lines and points

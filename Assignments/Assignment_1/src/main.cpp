@@ -36,9 +36,6 @@ static int IMG_HEIGHT, IMG_WIDTH;
 void convert_to_gray_scale(Mat &, Mat &, ColorSpace);
 void make_split_window(Mat &, Mat &, Mat &);
 
-//comparators
-bool my_comparator(Vec4i yy);
-
 int main(int argc, char **argv)
 {
     Ptr<BackgroundSubtractor> pBackSub;
@@ -188,9 +185,6 @@ int main(int argc, char **argv)
 
         if (!line_points.empty())
         {
-            // perform tip position estimation
-
-            // std::cout << line_points.size() << std::endl;
             //Perform PCA analysis
             Mat data_pts = Mat(line_points.size(), 2, CV_64F);
             for (int i = 0; i < data_pts.rows; i++)
@@ -253,12 +247,3 @@ void make_split_window(Mat &m1, Mat &m2, Mat &ccat_frame)
     m1.copyTo(ccat_frame(Rect(0, 0, IMG_WIDTH, IMG_HEIGHT)));
     m2.copyTo(ccat_frame(Rect(IMG_WIDTH, 0, IMG_WIDTH, IMG_HEIGHT)));
 }
-
-// bool my_comparator(Vec4i xx, Vec4i yy)
-// {
-//     if (yy[1] >= yy[3])
-//     {
-//         return true;
-//     }
-//     return false;
-// }

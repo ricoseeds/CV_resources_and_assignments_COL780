@@ -2,6 +2,7 @@
 #include <sstream>
 #include <fstream>
 #include <string>
+#include <algorithm>
 
 #include "json.hpp"
 
@@ -35,22 +36,9 @@ static int IMG_HEIGHT, IMG_WIDTH;
 void convert_to_gray_scale(Mat &, Mat &, ColorSpace);
 void make_split_window(Mat &, Mat &, Mat &);
 
-void drawAxis(Mat &img, Point p, Point q, Scalar colour, const float scale = 0.2)
-{
-    double angle = atan2((double)p.y - q.y, (double)p.x - q.x); // angle in radians
-    double hypotenuse = sqrt((double)(p.y - q.y) * (p.y - q.y) + (p.x - q.x) * (p.x - q.x));
-    // Here we lengthen the arrow by a factor of scale
-    q.x = (int)(p.x - scale * hypotenuse * cos(angle));
-    q.y = (int)(p.y - scale * hypotenuse * sin(angle));
-    cv::line(img, p, q, colour, 2, LINE_AA);
-    // create the arrow hooks
-    p.x = (int)(q.x + 9 * cos(angle + CV_PI / 4));
-    p.y = (int)(q.y + 9 * sin(angle + CV_PI / 4));
-    cv::line(img, p, q, colour, 2, LINE_AA);
-    p.x = (int)(q.x + 9 * cos(angle - CV_PI / 4));
-    p.y = (int)(q.y + 9 * sin(angle - CV_PI / 4));
-    cv::line(img, p, q, colour, 2, LINE_AA);
-}
+//comparators
+bool my_comparator(Vec4i yy);
+
 int main(int argc, char **argv)
 {
     Ptr<BackgroundSubtractor> pBackSub;
@@ -75,7 +63,7 @@ int main(int argc, char **argv)
     }
     IMG_HEIGHT = algorithm_parameters_parser["resize_height"];
     IMG_WIDTH = algorithm_parameters_parser["resize_width"];
-    Mat frame, frame_bw, mog2_mask, thresh_frame;
+    Mat frame, frame_bw, mog2_mask, thresh_frame, frame_bw_prob_hough;
     Mat concatenated_window_frame(cv::Size(IMG_WIDTH * 2, IMG_HEIGHT), CV_8UC3);
     int morph_elem = algorithm_parameters_parser["morph_element"];    // 0
     int morph_size = algorithm_parameters_parser["morph_point_size"]; // 3
@@ -89,6 +77,8 @@ int main(int argc, char **argv)
 
     //Hough
     vector<Vec2f> lines;
+    vector<Vec4i> line_segs;
+    Vec2i max_coord;
     bool can_detect_tip;
     std::vector<Point> tool_axis_iterator;
     std::vector<Point> line_points;
@@ -111,7 +101,7 @@ int main(int argc, char **argv)
         pBackSub->apply(frame_bw, frame_bw);
 
         // opening morph operation on fgMask
-        Mat element = getStructuringElement(morph_elem, Size(2 * morph_size + 1, 2 * morph_size + 1), Point(morph_size, morph_size)); // TUNE
+        Mat element = getStructuringElement(morph_elem, Size(2 * morph_size + 1, 2 * morph_size + 1)); // TUNE
         morphologyEx(frame_bw, frame_bw, operation, element);
 
         //Thresholding to get rid of shadows
@@ -132,35 +122,42 @@ int main(int argc, char **argv)
         // Canny edge detector
         Canny(frame_bw, frame_bw, algorithm_parameters_parser["canny_low_threshold"], algorithm_parameters_parser["canny_high_threshold"], 3);
 
+        // frame_bw_prob_hough = frame_bw;
         // Hough Transform to fit line
         HoughLines(frame_bw, lines, 1, CV_PI / 180, algorithm_parameters_parser["hough_threshold"], 0, 0); // runs the actual detection
-
+        // vector<Vec4i> lines;
+        HoughLinesP(frame_bw, line_segs, 1, CV_PI / 180, algorithm_parameters_parser["hough_threshold"], 30, 10);
+        float y_max, x_max;
         // dont detect tooltip if lines.size() is 0
-        can_detect_tip = (lines.size() ? true : false);
-        // std::cout << detect_tip;
+        can_detect_tip = (lines.size() && line_segs.size() ? true : false);
         if (can_detect_tip)
         {
-            float rho = lines[0][0], theta = lines[0][1];
-            Point pt1, pt2;
-            double a = cos(theta), b = sin(theta);
-            double x0 = a * rho, y0 = b * rho;
-            pt1.x = cvRound(x0 + 800 * (-b));
-            pt1.y = cvRound(y0 + 800 * (a));
-            pt2.x = cvRound(x0 - 800 * (-b));
-            pt2.y = cvRound(y0 - 800 * (a));
-            LineIterator ite(frame_bw, pt1, pt2, 8);
-            // find bright pels along this line
-            for (int j = 0; j < ite.count; j++, ++ite)
+            max_coord = Vec2i(0, 0);
+            for (size_t i = 0; i < line_segs.size(); i++)
             {
-                tool_axis_iterator.push_back(ite.pos());
+                if (line_segs[i][1] >= line_segs[i][3])
+                {
+                    x_max = line_segs[i][0];
+                    y_max = line_segs[i][1];
+                }
+                else
+                {
+                    x_max = line_segs[i][2];
+                    y_max = line_segs[i][3];
+                }
+                if (max_coord[1] <= y_max)
+                {
+                    max_coord[0] = x_max;
+                    max_coord[1] = y_max;
+                }
             }
-            for (size_t i = tool_axis_iterator.size(); i > 0; i--)
-            {
-            }
-            // can_detect_tip
-
-            // std::cout << ite.count << " -- ";
         }
+        // Showing prob hough lines
+        // for (size_t i = 0; i < lines.size(); i++)
+        // {
+        //     // line(frame, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
+        //     line(frame, Point(line_segs[i][0], line_segs[i][1]), Point(line_segs[i][2], line_segs[i][3]), Scalar(0, 0, 255), 3, 8);
+        // }
 
         // Get Detected line points
         for (size_t i = 0; i < lines.size(); i++)
@@ -170,16 +167,16 @@ int main(int argc, char **argv)
             Point pt1, pt2;
             double a = cos(theta), b = sin(theta);
             double x0 = a * rho, y0 = b * rho;
-            pt1.x = cvRound(x0 + 800 * (-b));
-            pt1.y = cvRound(y0 + 800 * (a));
-            pt2.x = cvRound(x0 - 800 * (-b));
-            pt2.y = cvRound(y0 - 800 * (a));
+            pt1.x = cvRound(x0 + 500 * (-b));
+            pt1.y = cvRound(y0 + 500 * (a));
+            pt2.x = cvRound(x0 - 500 * (-b));
+            pt2.y = cvRound(y0 - 500 * (a));
             if (algorithm_parameters_parser["show_hough_lines"])
                 line(frame, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
             // Get all line points
             // Another approach can be get all points from the image that are near to these detected lines.
             LineIterator it(frame_bw, pt1, pt2, 8);
-            for (int j = 0; j < it.count; j++, ++it)
+            for (int i = 0; i < it.count; i++, ++it)
             {
                 line_points.push_back(it.pos());
             }
@@ -215,8 +212,10 @@ int main(int argc, char **argv)
                 // std::cout << eigen_val[i] << std::endl;
             }
 
-            Point p1 = cntr + 0.02 * Point(static_cast<int>(eigen_vecs[0].x * eigen_val[0]), static_cast<int>(eigen_vecs[0].y * eigen_val[0]));
-            drawAxis(frame, cntr, p1, Scalar(0, 255, 0), 1);
+            Point medial_p1 = cntr + 0.5 * Point(static_cast<int>(eigen_vecs[0].x * eigen_val[0]), static_cast<int>(eigen_vecs[0].y * eigen_val[0]));
+            Point medial_p2 = cntr + -0.5 * Point(static_cast<int>(eigen_vecs[0].x * eigen_val[0]), static_cast<int>(eigen_vecs[0].y * eigen_val[0]));
+            cv::line(frame, medial_p1, medial_p2, Scalar(0, 255, 0), 2, LINE_AA);
+            cv::circle(frame, max_coord, 8, Scalar(0, 255, 0), 2);
         }
 
         // Clear lines and points
@@ -254,3 +253,12 @@ void make_split_window(Mat &m1, Mat &m2, Mat &ccat_frame)
     m1.copyTo(ccat_frame(Rect(0, 0, IMG_WIDTH, IMG_HEIGHT)));
     m2.copyTo(ccat_frame(Rect(IMG_WIDTH, 0, IMG_WIDTH, IMG_HEIGHT)));
 }
+
+// bool my_comparator(Vec4i xx, Vec4i yy)
+// {
+//     if (yy[1] >= yy[3])
+//     {
+//         return true;
+//     }
+//     return false;
+// }

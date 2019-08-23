@@ -75,7 +75,7 @@ int main(int argc, char **argv)
     }
     IMG_HEIGHT = algorithm_parameters_parser["resize_height"];
     IMG_WIDTH = algorithm_parameters_parser["resize_width"];
-    Mat frame, frame_bw, mog2_mask;
+    Mat frame, frame_bw, mog2_mask, thresh_frame;
     Mat concatenated_window_frame(cv::Size(IMG_WIDTH * 2, IMG_HEIGHT), CV_8UC3);
     int morph_elem = algorithm_parameters_parser["morph_element"];    // 0
     int morph_size = algorithm_parameters_parser["morph_point_size"]; // 3
@@ -89,7 +89,9 @@ int main(int argc, char **argv)
 
     //Hough
     vector<Vec2f> lines;
-
+    bool can_detect_tip;
+    std::vector<Point> tool_axis_iterator;
+    std::vector<Point> line_points;
     while (true)
     {
         capture >> frame;
@@ -117,6 +119,12 @@ int main(int argc, char **argv)
         {
             threshold(frame_bw, frame_bw, algorithm_parameters_parser["img_min_thresh"], algorithm_parameters_parser["img_max_thresh"], 0);
         }
+        if (algorithm_parameters_parser["compute_tool_tip"] && can_detect_tip)
+        {
+            // threshold(frame_bw, thresh_frame, algorithm_parameters_parser["img_min_thresh"], algorithm_parameters_parser["img_max_thresh"], 0);
+            blur(frame_bw, thresh_frame, Size(8, 8));
+            threshold(thresh_frame, thresh_frame, 100, 255, 0);
+        }
 
         // A round of gauss blur
         blur(frame_bw, frame_bw, Size(algorithm_parameters_parser["gaussian_kernel_size"], algorithm_parameters_parser["gaussian_kernel_size"]));
@@ -127,8 +135,34 @@ int main(int argc, char **argv)
         // Hough Transform to fit line
         HoughLines(frame_bw, lines, 1, CV_PI / 180, algorithm_parameters_parser["hough_threshold"], 0, 0); // runs the actual detection
 
+        // dont detect tooltip if lines.size() is 0
+        can_detect_tip = (lines.size() ? true : false);
+        // std::cout << detect_tip;
+        if (can_detect_tip)
+        {
+            float rho = lines[0][0], theta = lines[0][1];
+            Point pt1, pt2;
+            double a = cos(theta), b = sin(theta);
+            double x0 = a * rho, y0 = b * rho;
+            pt1.x = cvRound(x0 + 800 * (-b));
+            pt1.y = cvRound(y0 + 800 * (a));
+            pt2.x = cvRound(x0 - 800 * (-b));
+            pt2.y = cvRound(y0 - 800 * (a));
+            LineIterator ite(frame_bw, pt1, pt2, 8);
+            // find bright pels along this line
+            for (int j = 0; j < ite.count; j++, ++ite)
+            {
+                tool_axis_iterator.push_back(ite.pos());
+            }
+            for (size_t i = tool_axis_iterator.size(); i > 0; i--)
+            {
+            }
+            // can_detect_tip
+
+            // std::cout << ite.count << " -- ";
+        }
+
         // Get Detected line points
-        std::vector<Point> line_points;
         for (size_t i = 0; i < lines.size(); i++)
         {
             // std::cout << " No of Lines " << lines.size() << "\n";
@@ -136,16 +170,16 @@ int main(int argc, char **argv)
             Point pt1, pt2;
             double a = cos(theta), b = sin(theta);
             double x0 = a * rho, y0 = b * rho;
-            pt1.x = cvRound(x0 + 500 * (-b));
-            pt1.y = cvRound(y0 + 500 * (a));
-            pt2.x = cvRound(x0 - 500 * (-b));
-            pt2.y = cvRound(y0 - 500 * (a));
+            pt1.x = cvRound(x0 + 800 * (-b));
+            pt1.y = cvRound(y0 + 800 * (a));
+            pt2.x = cvRound(x0 - 800 * (-b));
+            pt2.y = cvRound(y0 - 800 * (a));
             if (algorithm_parameters_parser["show_hough_lines"])
                 line(frame, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
             // Get all line points
             // Another approach can be get all points from the image that are near to these detected lines.
             LineIterator it(frame_bw, pt1, pt2, 8);
-            for (int i = 0; i < it.count; i++, ++it)
+            for (int j = 0; j < it.count; j++, ++it)
             {
                 line_points.push_back(it.pos());
             }
@@ -157,6 +191,8 @@ int main(int argc, char **argv)
 
         if (!line_points.empty())
         {
+            // perform tip position estimation
+
             // std::cout << line_points.size() << std::endl;
             //Perform PCA analysis
             Mat data_pts = Mat(line_points.size(), 2, CV_64F);
@@ -186,6 +222,7 @@ int main(int argc, char **argv)
         // Clear lines and points
         line_points.clear();
         lines.clear();
+        tool_axis_iterator.clear();
 
         // Rendering stage
         convert_to_gray_scale(frame_bw, frame_bw, gray_to_rgb); // mandatory step so that concatenated_window_frame has same color Channel

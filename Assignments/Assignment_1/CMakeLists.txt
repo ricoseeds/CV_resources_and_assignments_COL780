@@ -4,7 +4,9 @@ include_directories(include)
 add_executable(${PROJECT_NAME} 
   src/main.cpp
   src/medial_axis.cpp
-  include/medial_axis.h)
+  include/medial_axis.h
+  include/circular_queue.h
+  )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

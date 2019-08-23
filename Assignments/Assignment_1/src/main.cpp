@@ -82,13 +82,10 @@ int main(int argc, char **argv)
     bool can_detect_tip;
     std::vector<Point> tool_axis_iterator;
     std::vector<Point> line_points;
-    //TODO parameterize
     AvgCircularBuffer averaging_buffer(algorithm_parameters_parser["averaging_window_size"]);
-
     vector<int> compression_params;
     compression_params.push_back(IMWRITE_PNG_COMPRESSION);
     compression_params.push_back(9);
-
     while (true)
     {
         capture >> frame;

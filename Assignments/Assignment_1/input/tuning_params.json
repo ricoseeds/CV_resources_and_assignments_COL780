@@ -13,6 +13,7 @@
     "bin_thresh": true,
     "hist_equlalize": false,
     "show_hough_lines": false,
+    "show_prob_hough_lines": false,
     "compute_tool_tip": true,
     "averaging_window_size": 20
 }

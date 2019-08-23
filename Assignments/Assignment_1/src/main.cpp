@@ -14,58 +14,15 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/video.hpp>
 
+//headers
+#include "circular_queue.h"
+
 using namespace cv;
 using namespace std;
 using json = nlohmann::json;
 
 #define DISPLAY_LINES
-class AvgCircularBuffer
-{
-    Point *CircularQ;
-    int size, count;
-    bool avg_flag;
 
-public:
-    AvgCircularBuffer(int size = 4)
-    {
-        avg_flag = false;
-        this->size = size;
-        this->count = 0;
-        CircularQ = new Point[size];
-    }
-    void en_q(Point p)
-    {
-        if (count <= size - 1)
-        {
-            CircularQ[count] = p;
-            count = (count + 1) % size;
-            if (count == size)
-            {
-                avg_flag = true;
-            }
-        }
-    }
-    float avg_val_y()
-    {
-        float accumulate_y = 0;
-        if (!avg_flag)
-        {
-            for (size_t i = 0; i < count; i++)
-            {
-                accumulate_y += CircularQ[i].y;
-            }
-            return (accumulate_y / (float)(count));
-        }
-        else
-        {
-            for (size_t i = 0; i < size; i++)
-            {
-                accumulate_y += CircularQ[i].y;
-            }
-            return (accumulate_y / (float)size);
-        }
-    }
-};
 typedef enum
 {
     gray_to_rgb,
@@ -127,6 +84,11 @@ int main(int argc, char **argv)
     std::vector<Point> line_points;
     //TODO parameterize
     AvgCircularBuffer averaging_buffer(algorithm_parameters_parser["averaging_window_size"]);
+
+    vector<int> compression_params;
+    compression_params.push_back(IMWRITE_PNG_COMPRESSION);
+    compression_params.push_back(9);
+
     while (true)
     {
         capture >> frame;
@@ -166,11 +128,9 @@ int main(int argc, char **argv)
 
         // Canny edge detector
         Canny(frame_bw, frame_bw, algorithm_parameters_parser["canny_low_threshold"], algorithm_parameters_parser["canny_high_threshold"], 3);
-
         // frame_bw_prob_hough = frame_bw;
         // Hough Transform to fit line
         HoughLines(frame_bw, lines, 1, CV_PI / 180, algorithm_parameters_parser["hough_threshold"], 0, 0); // runs the actual detection
-        // vector<Vec4i> lines;
         HoughLinesP(frame_bw, line_segs, 1, CV_PI / 180, algorithm_parameters_parser["hough_threshold"], 20, 15);
         float y_max, x_max;
         // dont detect tooltip if lines.size() is 0
@@ -199,11 +159,13 @@ int main(int argc, char **argv)
             averaging_buffer.en_q(Point(max_coord[0], max_coord[1]));
         }
         // Showing prob hough lines
-        // for (size_t i = 0; i < lines.size(); i++)
-        // {
-        //     // line(frame, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
-        //     line(frame, Point(line_segs[i][0], line_segs[i][1]), Point(line_segs[i][2], line_segs[i][3]), Scalar(0, 0, 255), 3, 8);
-        // }
+        if (algorithm_parameters_parser["show_hough_lines"])
+        {
+            for (size_t i = 0; i < lines.size(); i++)
+            {
+                line(frame, Point(line_segs[i][0], line_segs[i][1]), Point(line_segs[i][2], line_segs[i][3]), Scalar(0, 0, 255), 3, 8);
+            }
+        }
 
         // Get Detected line points
         for (size_t i = 0; i < lines.size(); i++)
@@ -218,9 +180,8 @@ int main(int argc, char **argv)
             pt2.x = cvRound(x0 - 800 * (-b));
             pt2.y = cvRound(y0 - 800 * (a));
             if (algorithm_parameters_parser["show_hough_lines"])
-                line(frame, pt1, pt2, Scalar(0, 0, 255), 3, LINE_AA);
+                line(frame, pt1, pt2, Scalar(0, 0, 255), 1, LINE_AA);
             // Get all line points
-            // Another approach can be get all points from the image that are near to these detected lines.
             LineIterator it(frame_bw, pt1, pt2, 8);
             for (int i = 0; i < it.count; i++, ++it)
             {

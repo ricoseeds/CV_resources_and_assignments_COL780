@@ -8,6 +8,3 @@ include_directories( ext/ )
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_STANDARD} -O3 -std=c++11")
 add_subdirectory(Assignments/Assignment_1)
-
-
-

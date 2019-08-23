@@ -23,6 +23,13 @@
         "complex": "cpp",
         "ostream": "cpp",
         "forward_list": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "__functional_base": "cpp",
+        "istream": "cpp",
+        "locale": "cpp",
+        "memory": "cpp",
+        "thread": "cpp",
+        "tuple": "cpp",
+        "variant": "cpp"
     }
 }

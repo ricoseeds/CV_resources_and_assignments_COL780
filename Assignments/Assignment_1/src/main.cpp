@@ -56,6 +56,7 @@ int main(int argc, char **argv)
     const string filename = algorithm_parameters_parser["data"];
     // VideoCapture capture(filename);
     VideoCapture capture(filename);
+
     if (!capture.isOpened())
     {
         cerr << "Unable to open video file" << endl;
@@ -83,9 +84,19 @@ int main(int argc, char **argv)
     std::vector<Point> tool_axis_iterator;
     std::vector<Point> line_points;
     AvgCircularBuffer averaging_buffer(algorithm_parameters_parser["averaging_window_size"]);
-    vector<int> compression_params;
-    compression_params.push_back(IMWRITE_PNG_COMPRESSION);
-    compression_params.push_back(9);
+    VideoWriter writer;
+    int codec = VideoWriter::fourcc('M', 'J', 'P', 'G');
+    double fps = 10.0;
+    string outfilename = "data/results/live_1.avi";
+    capture >> frame;
+    writer.open(outfilename, codec, fps, frame.size(), (frame.type() == CV_8UC3));
+    // check if we succeeded
+    if (!writer.isOpened())
+    {
+        cerr << "Could not open the output video file for write\n";
+        return -1;
+    }
+
     while (true)
     {
         capture >> frame;
@@ -234,6 +245,8 @@ int main(int argc, char **argv)
 
         // show frame
         imshow("Display window", concatenated_window_frame);
+        writer.write(concatenated_window_frame);
+
         int keyboard = waitKey(1); // ?
         if (keyboard == 'q' || keyboard == 27)
             break;

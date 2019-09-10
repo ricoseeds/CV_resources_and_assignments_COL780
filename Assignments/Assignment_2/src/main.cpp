@@ -22,7 +22,7 @@ void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc);
 void show_keypoints(Mat &input, Mat &output, vector<KeyPoint> &kpts);
 Point2f compute_COG(vector<KeyPoint> &kpts);
 void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vector<KeyPoint> &kpts);
-inline void match(string type, Mat &desc1, Mat &desc2, vector<DMatch> &matches);
+inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 
 const double kDistanceCoef = 4.0;
 const int kMaxMatchingSize = 50;
@@ -46,16 +46,17 @@ int main(int argc, const char *argv[])
     Mat output;                                      // output of sift
     get_keypoints(input_1, kpts_image_1, desc_1);
     get_keypoints(input_2, kpts_image_2, desc_2);
-    imshow("img", input_1);
+    // imshow("img", input_1);
 
     // Add results to image and save.
-    // show_keypoints(input_1, output, kpts);
+    show_keypoints(input_1, output, kpts_image_1);
+    // imshow("img", output);
 
     std::vector<Point2f> kpts_1;
     std::vector<Point2f> kpts_2;
 
     vector<DMatch> matches;
-    match("knn", desc_1, desc_2, matches);
+    match(desc_1, desc_2, matches);
     vector<char> match_mask(matches.size(), 1);
     if (static_cast<int>(match_mask.size()) < 3)
     {
@@ -76,6 +77,13 @@ int main(int argc, const char *argv[])
                                0.995);
     cout << "Keypoint 1 size = " << kpts_1.size() << " Keypoint_2_size = " << kpts_2.size() << endl;
     cout << "Homography matrix  : " << H << endl;
+    // Mat A = Mat::eye(3, 3, CV_32F) * 1.0;
+    H.at<double>(0, 2) = H.at<double>(0, 2) * -1.0;
+    H.at<double>(1, 2) = H.at<double>(1, 2) * -1.0;
+    Mat final_im = Mat::zeros(cv::Size(1000, 1000), 0);
+    input_1.copyTo(final_im(cv::Rect(0, 0, input_1.cols, input_1.rows)));
+    warpPerspective(input_2, final_im, H, final_im.size());
+    imshow("img", final_im);
 
     waitKey(0);
     return 0;
@@ -112,28 +120,21 @@ void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vec
         kpts_as_point2f.push_back(keypoint.pt);
     }
 }
-inline void match(string type, Mat &desc1, Mat &desc2, vector<DMatch> &matches)
+inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches)
 {
     matches.clear();
-    if (type == "bf")
+    BFMatcher desc_matcher(cv::NORM_L2, true);
+    vector<vector<DMatch>> vmatches;
+    desc_matcher.knnMatch(desc1, desc2, vmatches, 1);
+    for (int i = 0; i < static_cast<int>(vmatches.size()); ++i)
     {
-        BFMatcher desc_matcher(cv::NORM_L2, true);
-        desc_matcher.match(desc1, desc2, matches, Mat());
-    }
-    if (type == "knn")
-    {
-        BFMatcher desc_matcher(cv::NORM_L2, true);
-        vector<vector<DMatch>> vmatches;
-        desc_matcher.knnMatch(desc1, desc2, vmatches, 1);
-        for (int i = 0; i < static_cast<int>(vmatches.size()); ++i)
+        if (!vmatches[i].size())
         {
-            if (!vmatches[i].size())
-            {
-                continue;
-            }
-            matches.push_back(vmatches[i][0]);
+            continue;
         }
+        matches.push_back(vmatches[i][0]);
     }
+
     std::sort(matches.begin(), matches.end());
     while (matches.front().distance * kDistanceCoef < matches.back().distance)
     {

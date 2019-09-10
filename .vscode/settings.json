@@ -23,6 +23,10 @@
         "complex": "cpp",
         "ostream": "cpp",
         "forward_list": "cpp",
-        "*.ipp": "cpp"
+        "*.ipp": "cpp",
+        "random": "cpp",
+        "stack": "cpp",
+        "ios": "cpp",
+        "*.tcc": "cpp"
     }
 }

@@ -46,12 +46,8 @@ int main(int argc, const char *argv[])
     Mat output;                                      // output of sift
     get_keypoints(input_1, kpts_image_1, desc_1);
     get_keypoints(input_2, kpts_image_2, desc_2);
-    // imshow("img", input_1);
-
     // Add results to image and save.
     show_keypoints(input_1, output, kpts_image_1);
-    // imshow("img", output);
-
     std::vector<Point2f> kpts_1;
     std::vector<Point2f> kpts_2;
 
@@ -77,14 +73,16 @@ int main(int argc, const char *argv[])
                                0.995);
     cout << "Keypoint 1 size = " << kpts_1.size() << " Keypoint_2_size = " << kpts_2.size() << endl;
     cout << "Homography matrix  : " << H << endl;
-    // Mat A = Mat::eye(3, 3, CV_32F) * 1.0;
     H.at<double>(0, 2) = H.at<double>(0, 2) * -1.0;
     H.at<double>(1, 2) = H.at<double>(1, 2) * -1.0;
+    int tx = H.at<double>(0, 2);
+    int ty = H.at<double>(1, 2);
     Mat final_im = Mat::zeros(cv::Size(1000, 1000), 0);
+    Mat projective_warp;
+    warpPerspective(input_2, projective_warp, H, Size(1000, 1000));
+    projective_warp.copyTo(final_im(cv::Rect(0, 0, projective_warp.cols, projective_warp.rows)));
     input_1.copyTo(final_im(cv::Rect(0, 0, input_1.cols, input_1.rows)));
-    warpPerspective(input_2, final_im, H, final_im.size());
     imshow("img", final_im);
-
     waitKey(0);
     return 0;
 }

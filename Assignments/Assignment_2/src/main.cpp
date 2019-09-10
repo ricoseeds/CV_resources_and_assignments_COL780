@@ -79,7 +79,16 @@ int main(int argc, const char *argv[])
     int ty = H.at<double>(1, 2);
     Mat final_im = Mat::zeros(cv::Size(1000, 1000), 0);
     Mat projective_warp;
-    warpPerspective(input_2, projective_warp, H, Size(1000, 1000));
+    // We are supposed to find the bounding box after warping. TODO: dim(projective_warp) = dim(bounding_box)
+    // OR
+    /*
+    for i in (tx, rows + tx){
+        for j in (ty, cols + ty){
+            overwrite pixels of final_im
+        }
+    }
+    */
+    warpPerspective(input_2, projective_warp, H, Size(1000, 1000)); // TODO: to be optimised
     projective_warp.copyTo(final_im(cv::Rect(0, 0, projective_warp.cols, projective_warp.rows)));
     input_1.copyTo(final_im(cv::Rect(0, 0, input_1.cols, input_1.rows)));
     imshow("img", final_im);

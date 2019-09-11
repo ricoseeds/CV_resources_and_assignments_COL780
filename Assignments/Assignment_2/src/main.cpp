@@ -50,10 +50,20 @@ int main(int argc, const char *argv[])
     show_keypoints(input_1, output, kpts_image_1);
     std::vector<Point2f> kpts_1;
     std::vector<Point2f> kpts_2;
+	std::vector<float> keypoints_distance;
+
+	// We would also create a matric of size nxn where n is number images.
+	// Then the (i,j)th element should be the normalized distanace value.
+	// This could generate a symmetrical matrix.
+	// And then in each row, we see which  element is lowest, the lowest element index will be matched image.
+	// say the lowest element is a{p,q} then pth image matches qth image best and must be stitched...
+	// Now I am stuck on what should be the order .... 
+
 
     vector<DMatch> matches;
     match(desc_1, desc_2, matches);
     vector<char> match_mask(matches.size(), 1);
+	keypoints_distance.reserve(matches.size());
     if (static_cast<int>(match_mask.size()) < 3)
     {
         cout << "Not enough correspondence";
@@ -63,7 +73,16 @@ int main(int argc, const char *argv[])
     {
         kpts_1.push_back(kpts_image_1[matches[i].queryIdx].pt);
         kpts_2.push_back(kpts_image_2[matches[i].trainIdx].pt);
+		std::cout << matches[i].distance << std::endl;
+		keypoints_distance.push_back(matches[i].distance);
     }
+
+	//Matched images will have least normalized distance.
+	float normalized_distance = std::accumulate(keypoints_distance.begin(), keypoints_distance.end(), 0)/ keypoints_distance.size();
+
+	// We must find a way to keep cache this distance, then attach images based on this distance.
+	std::cout << "normalized_distance: " <<  normalized_distance << std::endl;
+
     Mat H = cv::findHomography(kpts_1,
                                kpts_2,
                                0,

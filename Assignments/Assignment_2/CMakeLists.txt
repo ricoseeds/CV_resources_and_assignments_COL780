@@ -2,7 +2,7 @@ project(Assignment_2)
 include_directories(include)
 
 add_executable(${PROJECT_NAME} 
-  src/main.cpp)
+  src/main.cpp src/f_utils.cpp)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
@@ -12,4 +12,4 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 endif()
 
 
-target_link_libraries( ${PROJECT_NAME} ${OpenCV_LIBS} Eigen3::Eigen)
+target_link_libraries( ${PROJECT_NAME} ${OpenCV_LIBS} Eigen3::Eigen ${Boost_FILESYSTEM_LIBRARY})

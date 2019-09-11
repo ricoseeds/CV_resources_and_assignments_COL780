@@ -6,6 +6,8 @@ include_directories( ${OpenCV_INCLUDE_DIRS} )
 include_directories( ext/ )
 
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Boost COMPONENTS filesystem REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_STANDARD} -O3 -std=c++11")
 add_subdirectory(Assignments/DisplayImage)
 add_subdirectory(Assignments/HistEqualization)

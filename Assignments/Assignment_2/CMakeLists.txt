@@ -12,4 +12,4 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 endif()
 
 
-target_link_libraries( ${PROJECT_NAME} ${OpenCV_LIBS} Eigen3::Eigen ${Boost_FILESYSTEM_LIBRARY})
+target_link_libraries( ${PROJECT_NAME} ${OpenCV_LIBS} Eigen3::Eigen )

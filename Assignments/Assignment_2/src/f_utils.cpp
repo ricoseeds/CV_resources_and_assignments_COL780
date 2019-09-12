@@ -2,13 +2,11 @@
 
 void populate_images_from_dir(std::string relative_path, std::vector<cv::Mat> &all_images)
 {
-    boost::filesystem::path p(relative_path);
-    if (is_directory(p))
+    std::vector<std::string> filenames;
+    cv::glob(relative_path, filenames);
+    for (size_t i = 0; i < filenames.size(); ++i)
     {
-        for (auto &entry : boost::make_iterator_range(boost::filesystem::directory_iterator(p), {}))
-        {
-            cv::Mat input = cv::imread(entry.path().string(), 0);
-            all_images.push_back(input);
-        }
+        cv::Mat input = cv::imread(filenames[i], 0); // Set 0 for B/W images
+        all_images.push_back(input);
     }
 }

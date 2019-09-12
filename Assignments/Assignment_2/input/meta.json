@@ -1,7 +1,12 @@
 {
-    "data": [
-        "data/test_img/2.png",
-        "data/test_img/1.png"
-    ],
-    "testcase": "data/image_dataset/1/"
+    "testcase": {
+        "run_case": 0,
+        "filename": [
+            "data/image_dataset/1/",
+            "data/image_dataset/2/",
+            "data/image_dataset/3/",
+            "data/image_dataset/4/",
+            "data/image_dataset/5/"
+        ]
+    }
 }

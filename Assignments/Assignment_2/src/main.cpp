@@ -25,7 +25,7 @@ int main(int argc, const char *argv[])
         for (size_t j = i + 1; j < all_images.size(); j++)
         {
             vector<DMatch> matches;
-            match(all_images[i], all_images[j], matches);
+            match(descriptors_all_img[i], descriptors_all_img[j], matches);
             float accumulate = 0.0f;
             for (size_t k = 0; k < static_cast<int>(matches.size()); k++)
             {

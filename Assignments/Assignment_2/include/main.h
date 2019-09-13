@@ -3,6 +3,7 @@
 #include <fstream>
 #include "json.hpp"
 #include <vector>
+#include <map>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/features2d.hpp> //Thanks to Alessandro
@@ -88,12 +89,6 @@ inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches)
     }
 
     std::sort(matches.begin(), matches.end());
-    // Checking how the distance are ranging in  matching
-    // for (auto it = matches.begin(); it < matches.end(); it++)
-    // {
-    //     cout << (*it).distance << endl;
-    // }
-
     while (matches.front().distance * kDistanceCoef < matches.back().distance)
     {
         matches.pop_back();

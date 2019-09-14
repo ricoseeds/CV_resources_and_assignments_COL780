@@ -25,7 +25,7 @@ void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vec
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 
 const double kDistanceCoef = 4.0;
-const int kMaxMatchingSize = 10;
+const int kMaxMatchingSize = 20;
 
 int main(int argc, const char *argv[])
 {
@@ -96,19 +96,13 @@ int main(int argc, const char *argv[])
 	// We must find a way to keep cache this distance, then attach images based on this distance.
 	std::cout << "normalized_distance: " <<  normalized_distance << std::endl;
 
-    Mat H = cv::findHomography(kpts_1,
-                               kpts_2,
-                               0,
-                               3,
-                               noArray(),
-                               2000,
-                               0.995);
+	Mat H = findHomography(kpts_1, kpts_2, RANSAC);
     cout << "Keypoint 1 size = " << kpts_1.size() << " Keypoint_2_size = " << kpts_2.size() << endl;
     cout << "Homography matrix  : " << H << endl;
-    H.at<double>(0, 2) = H.at<double>(0, 2) * -1.0;
+   /* H.at<double>(0, 2) = H.at<double>(0, 2) * -1.0;
     H.at<double>(1, 2) = H.at<double>(1, 2) * -1.0;
     int tx = H.at<double>(0, 2);
-    int ty = H.at<double>(1, 2);
+    int ty = H.at<double>(1, 2);*/
     Mat final_im = Mat::zeros(cv::Size(1000, 1000), 0);
     Mat projective_warp;
     // We are supposed to find the bounding box after warping. TODO: dim(projective_warp) = dim(bounding_box)
@@ -120,10 +114,20 @@ int main(int argc, const char *argv[])
         }
     }
     */
-    warpPerspective(input_2, projective_warp, H, Size(1000, 1000)); // TODO: to be optimised
-    projective_warp.copyTo(final_im(cv::Rect(0, 0, projective_warp.cols, projective_warp.rows)));
-    input_1.copyTo(final_im(cv::Rect(0, 0, input_1.cols, input_1.rows)));
-    imshow("img", final_im);
+    //warpPerspective(input_2, projective_warp, H, Size(1000, 1000)); // TODO: to be optimised
+    //projective_warp.copyTo(final_im(cv::Rect(0, 0, projective_warp.cols, projective_warp.rows)));
+    //input_1.copyTo(final_im(cv::Rect(0, 0, input_1.cols, input_1.rows)));
+
+	int width = input_1.cols + input_2.cols;
+	int height = input_1.rows + input_2.rows;
+	
+	cv::Mat result;
+	warpPerspective(input_2, result, H, cv::Size(input_1.cols + input_2.cols, input_2.rows));
+	imshow("Result_warped", result);
+
+	cv::Mat half(result, cv::Rect(0, 0, input_1.cols, input_1.rows));
+	input_1.copyTo(half);
+	imshow("Result", result);
     waitKey(0);
     return 0;
 }

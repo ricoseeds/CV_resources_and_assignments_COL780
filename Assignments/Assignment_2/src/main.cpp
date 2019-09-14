@@ -25,7 +25,7 @@ void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vec
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 
 const double kDistanceCoef = 4.0;
-const int kMaxMatchingSize = 50;
+const int kMaxMatchingSize = 10;
 
 int main(int argc, const char *argv[])
 {
@@ -43,11 +43,19 @@ int main(int argc, const char *argv[])
     Mat desc_2;
     Mat input_1 = imread(meta_parser["data"][0], 0); //Load as grayscale
     Mat input_2 = imread(meta_parser["data"][1], 0); //Load as grayscale
+
+	resize(input_1, input_1, Size(input_1.size().width / 6, input_1.size().height / 6), cv::INTER_AREA);
+	resize(input_2, input_2, Size(input_2.size().width / 6, input_2.size().height / 6), cv::INTER_AREA);
+
     Mat output;                                      // output of sift
     get_keypoints(input_1, kpts_image_1, desc_1);
     get_keypoints(input_2, kpts_image_2, desc_2);
-    // Add results to image and save.
-    show_keypoints(input_1, output, kpts_image_1);
+    
+	
+	// Add results to image and save.
+    //show_keypoints(input_1, output, kpts_image_1);
+	//imshow("matches", output);
+
     std::vector<Point2f> kpts_1;
     std::vector<Point2f> kpts_2;
 	std::vector<float> keypoints_distance;
@@ -59,9 +67,15 @@ int main(int argc, const char *argv[])
 	// say the lowest element is a{p,q} then pth image matches qth image best and must be stitched...
 	// Now I am stuck on what should be the order .... 
 
-
+	// Show matched keypoints
     vector<DMatch> matches;
     match(desc_1, desc_2, matches);
+
+	Mat img_matches;
+	drawMatches(input_1, kpts_image_1, input_2, kpts_image_2, matches, img_matches, Scalar::all(-1),
+		Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	imshow("matched_image", img_matches);
+
     vector<char> match_mask(matches.size(), 1);
 	keypoints_distance.reserve(matches.size());
     if (static_cast<int>(match_mask.size()) < 3)
@@ -73,7 +87,6 @@ int main(int argc, const char *argv[])
     {
         kpts_1.push_back(kpts_image_1[matches[i].queryIdx].pt);
         kpts_2.push_back(kpts_image_2[matches[i].trainIdx].pt);
-		std::cout << matches[i].distance << std::endl;
 		keypoints_distance.push_back(matches[i].distance);
     }
 

@@ -88,11 +88,14 @@ inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches)
         matches.push_back(vmatches[i][0]);
     }
 
+	// Just keep the matches which are less than k * max value. 
     std::sort(matches.begin(), matches.end());
     while (matches.front().distance * kDistanceCoef < matches.back().distance)
     {
         matches.pop_back();
     }
+
+	// Have at max 50 matches.
     while (matches.size() > kMaxMatchingSize)
     {
         matches.pop_back();

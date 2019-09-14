@@ -19,6 +19,11 @@ int main(int argc, const char *argv[])
     get_keypoints_and_descriptors_for_all_imgs(all_images, keypoint_all_img, descriptors_all_img);
     // show_keypoints(all_images[0], all_images[0], keypoint_all_img[0]);
     map<pair<int, int>, float> distances;
+    map<pair<int, int>, vector<DMatch>> image_i_j_matches;
+    map<pair<int, int>, vector<Point2f>> image_i_j_matches_point2f_query;
+    map<pair<int, int>, vector<Point2f>> image_i_j_matches_point2f_train;
+    map<pair<int, int>, Mat> image_i_j_homography;
+    map<pair<int, int>, Mat> image_i_j_homography_mask;
 
     for (size_t i = 0; i < all_images.size(); i++)
     {
@@ -26,29 +31,35 @@ int main(int argc, const char *argv[])
         {
             vector<DMatch> matches;
             match(descriptors_all_img[i], descriptors_all_img[j], matches);
-            float accumulate = 0.0f;
-            for (size_t k = 0; k < static_cast<int>(matches.size()); k++)
-            {
-                accumulate += matches[i].distance;
-            }
-            accumulate /= matches.size();
-            distances[make_pair(i, j)] = accumulate;
+            image_i_j_matches[make_pair(i, j)] = matches;
         }
     }
-
-    // print distances
-    for (auto i = distances.begin(); i != distances.end(); i++)
+    // compute keypoint in point2f
+    for (auto i = image_i_j_matches.begin(); i != image_i_j_matches.end(); i++)
     {
-        cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
-             << " = " << i->second << endl;
+        vector<Point2f> kpts_a, kpts_b;
+        int index_i, index_j;
+        index_i = std::get<0>(i->first);
+        index_j = std::get<1>(i->first);
+        for (size_t j = 0; j < i->second.size(); j++)
+        {
+            kpts_a.push_back(keypoint_all_img[index_i][i->second[j].queryIdx].pt);
+            kpts_b.push_back(keypoint_all_img[index_j][i->second[j].trainIdx].pt);
+        }
+        image_i_j_matches_point2f_query[make_pair(index_i, index_j)] = kpts_a;
+        image_i_j_matches_point2f_train[make_pair(index_i, index_j)] = kpts_b;
+        Mat hmask;
+        // Mat H = cv::findHomography(kpts_a,
+        //                            kpts_b,
+        //                            0,
+        //                            3,
+        //                            hmask,
+        //                            2000,
+        //                            0.995);
+        Mat H = cv::findHomography(kpts_a, kpts_b, hmask, 0, 10);
+        image_i_j_homography[make_pair(index_i, index_j)] = H;
+        image_i_j_homography_mask[make_pair(index_i, index_j)] = hmask;
     }
-
-    // distances[make_pair(1, 2)] = 3.4f;
-    // auto it = distances.find(make_pair(1, 3));
-    // if (it != distances.end())
-    // {
-    //     std::cout << distances[make_pair(1, 2)];
-    // }
 
     imshow("img", all_images[0]);
     waitKey(0);

@@ -98,35 +98,14 @@ int main(int argc, const char *argv[])
     Mat H = findHomography(kpts_1, kpts_2, RANSAC);
     cout << "Keypoint 1 size = " << kpts_1.size() << " Keypoint_2_size = " << kpts_2.size() << endl;
     cout << "Homography matrix  : " << H << endl;
-    /* H.at<double>(0, 2) = H.at<double>(0, 2) * -1.0;
-    H.at<double>(1, 2) = H.at<double>(1, 2) * -1.0;
-    int tx = H.at<double>(0, 2);
-    int ty = H.at<double>(1, 2);*/
-    Mat final_im = Mat::zeros(cv::Size(1000, 1000), 0);
-    Mat projective_warp;
-    // We are supposed to find the bounding box after warping. TODO: dim(projective_warp) = dim(bounding_box)
-    // OR
-    /*
-    for i in (tx, rows + tx){
-        for j in (ty, cols + ty){
-            overwrite pixels of final_im
-        }
-    }
-    */
-    //warpPerspective(input_2, projective_warp, H, Size(1000, 1000)); // TODO: to be optimised
-    //projective_warp.copyTo(final_im(cv::Rect(0, 0, projective_warp.cols, projective_warp.rows)));
-    //input_1.copyTo(final_im(cv::Rect(0, 0, input_1.cols, input_1.rows)));
-
-    int width = input_1.cols + input_2.cols;
-    int height = input_1.rows + input_2.rows;
 
     cv::Mat result;
     warpPerspective(input_2, result, H.inv(), cv::Size(input_1.cols + input_2.cols, input_2.rows));
-    imshow("Result_warped", result);
+    // imshow("Result_warped", result);
 
     cv::Mat half(result, cv::Rect(0, 0, input_1.cols, input_1.rows));
     input_1.copyTo(half);
-    imshow("Result", result);
+    imshow("Result Panorama", result);
     waitKey(0);
     return 0;
 }

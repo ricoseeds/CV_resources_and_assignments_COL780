@@ -41,8 +41,8 @@ int main(int argc, const char *argv[])
     vector<KeyPoint> kpts_image_2;
     Mat desc_1;
     Mat desc_2;
-    Mat input_1 = imread(meta_parser["data"][0], 0); //Load as grayscale
-    Mat input_2 = imread(meta_parser["data"][1], 0); //Load as grayscale
+    Mat input_1 = imread(meta_parser["data"][0], IMREAD_COLOR); //Load as grayscale
+    Mat input_2 = imread(meta_parser["data"][1], IMREAD_COLOR); //Load as grayscale
 
     resize(input_1, input_1, Size(input_1.size().width / 6, input_1.size().height / 6), cv::INTER_AREA);
     resize(input_2, input_2, Size(input_2.size().width / 6, input_2.size().height / 6), cv::INTER_AREA);

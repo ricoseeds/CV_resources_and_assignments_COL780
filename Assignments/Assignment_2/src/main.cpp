@@ -100,7 +100,7 @@ int main(int argc, const char *argv[])
     cout << "Homography matrix  : " << H << endl;
 
     cv::Mat result;
-    warpPerspective(input_2, result, H.inv(), cv::Size(input_1.cols + input_2.cols, input_2.rows));
+    warpPerspective(input_2, result, H, cv::Size(input_1.cols + input_2.cols, input_2.rows), WARP_INVERSE_MAP);
     // imshow("Result_warped", result);
 
     cv::Mat half(result, cv::Rect(0, 0, input_1.cols, input_1.rows));

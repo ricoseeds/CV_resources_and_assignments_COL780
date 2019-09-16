@@ -213,7 +213,9 @@ int main(int argc, const char *argv[])
     // We must find a way to keep cache this distance, then attach images based on this distance.
     std::cout << "normalized_distance: " << normalized_distance << std::endl;
 
-    Mat H = findHomography(kpts_1, kpts_2, RANSAC);
+    Mat hmask;
+    Mat H = findHomography(kpts_1, kpts_2, RANSAC, 100, hmask, 2000, 0.998);
+    cout << "HOMO mask : " << hmask;
     cout << "Keypoint 1 size = " << kpts_1.size() << " Keypoint_2_size = " << kpts_2.size() << endl;
     cout << "Homography matrix  : " << H << endl;
 

@@ -60,6 +60,11 @@ int main(int argc, const char *argv[])
         image_i_j_homography[make_pair(index_i, index_j)] = H;
         image_i_j_homography_mask[make_pair(index_i, index_j)] = hmask;
     }
+    for (auto i = image_i_j_homography_mask.begin(); i != image_i_j_homography_mask.end(); i++)
+    {
+        cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
+             << " = " << i->second << endl;
+    }
 
     imshow("img", all_images[0]);
     waitKey(0);

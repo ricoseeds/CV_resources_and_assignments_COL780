@@ -49,18 +49,35 @@ int main(int argc, const char *argv[])
         image_i_j_matches_point2f_query[make_pair(index_i, index_j)] = kpts_a;
         image_i_j_matches_point2f_train[make_pair(index_i, index_j)] = kpts_b;
         Mat hmask;
-        // Mat H = cv::findHomography(kpts_a,
-        //                            kpts_b,
-        //                            0,
-        //                            3,
-        //                            hmask,
-        //                            2000,
-        //                            0.995);
-        Mat H = cv::findHomography(kpts_a, kpts_b, hmask, 0, 10);
+        // Good result for high values of ransac_re_proj_threshold
+        Mat H = findHomography(kpts_a, kpts_b, RANSAC, meta_parser["ransac_re_proj_threshold"], hmask, 2000, 0.998);
         image_i_j_homography[make_pair(index_i, index_j)] = H;
         image_i_j_homography_mask[make_pair(index_i, index_j)] = hmask;
     }
-    for (auto i = image_i_j_homography_mask.begin(); i != image_i_j_homography_mask.end(); i++)
+
+    // Build Dij metric
+    for (size_t i = 0; i < all_images.size(); i++)
+    {
+        for (size_t j = i + 1; j < all_images.size(); j++)
+        {
+            vector<DMatch> matches;
+            matches = image_i_j_matches[make_pair(i, j)];
+            float accumulate = 0.0f;
+            for (size_t k = 0; k < static_cast<int>(matches.size()); k++)
+            {
+                // kill the outliers
+                if (image_i_j_homography_mask[make_pair(i, j)].at<int>(0, k))
+                {
+                    accumulate += matches[i].distance;
+                }
+            }
+            accumulate /= matches.size();
+            distances[make_pair(i, j)] = accumulate;
+        }
+    }
+
+    // print distances
+    for (auto i = distances.begin(); i != distances.end(); i++)
     {
         cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
              << " = " << i->second << endl;

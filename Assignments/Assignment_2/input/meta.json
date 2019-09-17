@@ -8,5 +8,6 @@
             "data/image_dataset/4/",
             "data/image_dataset/5/"
         ]
-    }
+    },
+    "ransac_re_proj_threshold": 3
 }

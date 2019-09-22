@@ -1,7 +1,10 @@
 #include "main.h"
-
+void get_Dij_by_distances_of_matched_inliers(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, float> &distances);
+void get_Dij_by_match_count(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, pair<int, int>> &match_count);
 int main(int argc, const char *argv[])
 {
+    // RANSAC uses random number hence we need a seed to get consistent results
+    theRNG().state = 1234;
 #ifdef _MSC_VER
     std::ifstream ifile("C:/Projects/Acads/COL780/Assignments/Assignment_2/input/meta.json");
 #else
@@ -19,7 +22,9 @@ int main(int argc, const char *argv[])
     get_keypoints_and_descriptors_for_all_imgs(all_images, keypoint_all_img, descriptors_all_img);
     // show_keypoints(all_images[0], all_images[0], keypoint_all_img[0]);
     map<pair<int, int>, float> distances;
-    map<pair<int, int>, vector<DMatch>> image_i_j_matches;
+    map<pair<int, int>, pair<int, int>> match_count;
+    map<pair<int, int>, vector<DMatch>>
+        image_i_j_matches;
     map<pair<int, int>, vector<Point2f>> image_i_j_matches_point2f_query;
     map<pair<int, int>, vector<Point2f>> image_i_j_matches_point2f_train;
     map<pair<int, int>, Mat> image_i_j_homography;
@@ -56,6 +61,45 @@ int main(int argc, const char *argv[])
     }
 
     // Build Dij metric
+    if (meta_parser["matching_heuristics"] == 1)
+    {
+        get_Dij_by_distances_of_matched_inliers(all_images, image_i_j_matches, image_i_j_homography_mask, distances);
+    }
+    else if (meta_parser["matching_heuristics"] == 2)
+    {
+        get_Dij_by_match_count(all_images, image_i_j_matches, image_i_j_homography_mask, match_count);
+    }
+    else
+    {
+        cerr << "Choose [1 | 2] in the 'matching_heuristics' field of meta.json";
+    }
+
+    // print distances
+    for (auto i = distances.begin(); i != distances.end(); i++)
+    {
+        cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
+             << " = " << i->second << endl;
+    }
+
+    imshow("img", all_images[0]);
+    waitKey(0);
+}
+
+void get_Dij_by_match_count(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, pair<int, int>> &match_count)
+{
+    for (size_t i = 0; i < all_images.size(); i++)
+    {
+        for (size_t j = i + 1; j < all_images.size(); j++)
+        {
+            // cout << " [" << i + 1 << " , " << j + 1 << " ] = " << countNonZero(image_i_j_homography_mask[make_pair(i, j)]) << " Size = " << image_i_j_homography_mask[make_pair(i, j)].size().height << endl;
+            // cout << " [" << i << " , " << j << " ] = " << image_i_j_homography_mask[make_pair(i, j)] << endl;
+        }
+    }
+}
+
+// Really big signature, needs refactor
+void get_Dij_by_distances_of_matched_inliers(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, float> &distances)
+{
     for (size_t i = 0; i < all_images.size(); i++)
     {
         for (size_t j = i + 1; j < all_images.size(); j++)
@@ -75,14 +119,4 @@ int main(int argc, const char *argv[])
             distances[make_pair(i, j)] = accumulate;
         }
     }
-
-    // print distances
-    for (auto i = distances.begin(); i != distances.end(); i++)
-    {
-        cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
-             << " = " << i->second << endl;
-    }
-
-    imshow("img", all_images[0]);
-    waitKey(0);
 }

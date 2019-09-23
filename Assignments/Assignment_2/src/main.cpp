@@ -19,6 +19,7 @@ int main(int argc, const char *argv[])
     vector<Mat> all_images;
     int index = (int)meta_parser["testcase"]["run_case"];
     populate_images_from_dir(meta_parser["testcase"]["filename"][index], all_images);
+    kMaxMatchingSize = meta_parser["kMaxMatchingSize"];
     sample_down(all_images);
     get_keypoints_and_descriptors_for_all_imgs(all_images, keypoint_all_img, descriptors_all_img);
     // show_keypoints(all_images[0], all_images[0], keypoint_all_img[0]);

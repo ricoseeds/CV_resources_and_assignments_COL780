@@ -30,7 +30,7 @@ void sample_down(vector<Mat> &all_images);
 void get_keypoints_and_descriptors_for_all_imgs(vector<Mat> &input, vector<vector<KeyPoint>> &kpts, vector<Mat> &desc);
 
 const double kDistanceCoef = 3.0;
-const int kMaxMatchingSize = 20;
+int kMaxMatchingSize = 0;
 
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)
 {

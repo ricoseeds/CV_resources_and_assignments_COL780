@@ -4,6 +4,7 @@
 #include "json.hpp"
 #include <vector>
 #include <map>
+#include <set>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/features2d.hpp> //Thanks to Alessandro

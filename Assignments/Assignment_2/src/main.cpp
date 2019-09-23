@@ -1,7 +1,7 @@
 #include "main.h"
 void get_Dij_by_distances_of_matched_inliers(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, float> &distances);
 void get_Dij_by_match_count(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, pair<int, int>> &match_count);
-void get_match_fraction(map<pair<int, int>, pair<int, int>> match_count, map<pair<int, int>, float> match_fraction);
+void get_match_fraction(map<pair<int, int>, pair<int, int>> match_count, map<pair<int, int>, float> &match_fraction);
 int main(int argc, const char *argv[])
 {
     // RANSAC uses random number hence we need a seed to get consistent results
@@ -72,6 +72,24 @@ int main(int argc, const char *argv[])
     {
         get_Dij_by_match_count(all_images, image_i_j_matches, image_i_j_homography_mask, match_count);
         get_match_fraction(match_count, match_fraction);
+        // Declaring the type of Predicate that accepts 2 pairs and return a bool
+        typedef std::function<bool(std::pair<pair<int, int>, float>, std::pair<pair<int, int>, float>)> Comparator;
+
+        // Defining a lambda function to compare two pairs. It will compare two pairs using second field
+        Comparator compFunctor =
+            [](std::pair<pair<int, int>, float> elem1, std::pair<pair<int, int>, float> elem2) {
+                return elem1.second >= elem2.second;
+            };
+        std::set<std::pair<pair<int, int>, float>, Comparator> match_fract_set(
+            match_fraction.begin(), match_fraction.end(), compFunctor);
+        cout << " \n\n ---- \n\n";
+        match_fraction.clear();
+        for (auto i : match_fract_set)
+        {
+            cout << "<" << std::get<0>(i.first) + 1 << ", " << std::get<1>(i.first) + 1 << ">"
+                 << " = " << i.second << endl;
+            match_fraction[make_pair(get<0>(i.first), get<1>(i.first))] = i.second;
+        }
     }
     else
     {
@@ -89,7 +107,7 @@ int main(int argc, const char *argv[])
     waitKey(0);
 }
 
-void get_match_fraction(map<pair<int, int>, pair<int, int>> match_count, map<pair<int, int>, float> match_fraction)
+void get_match_fraction(map<pair<int, int>, pair<int, int>> match_count, map<pair<int, int>, float> &match_fraction)
 {
     for (auto i = match_count.begin(); i != match_count.end(); i++)
     {

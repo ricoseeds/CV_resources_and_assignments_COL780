@@ -1,6 +1,6 @@
 {
     "testcase": {
-        "run_case": 0,
+        "run_case": 4,
         "filename": [
             "data/image_dataset/1/",
             "data/image_dataset/2/",
@@ -10,5 +10,5 @@
         ]
     },
     "ransac_re_proj_threshold": 3,
-    "matching_heuristics": 2
+    "matching_heuristics": 3
 }

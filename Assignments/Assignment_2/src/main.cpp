@@ -1,6 +1,7 @@
 #include "main.h"
 void get_Dij_by_distances_of_matched_inliers(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, float> &distances);
 void get_Dij_by_match_count(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, pair<int, int>> &match_count);
+void get_match_fraction(map<pair<int, int>, pair<int, int>> match_count, map<pair<int, int>, float> match_fraction);
 int main(int argc, const char *argv[])
 {
     // RANSAC uses random number hence we need a seed to get consistent results
@@ -22,6 +23,7 @@ int main(int argc, const char *argv[])
     get_keypoints_and_descriptors_for_all_imgs(all_images, keypoint_all_img, descriptors_all_img);
     // show_keypoints(all_images[0], all_images[0], keypoint_all_img[0]);
     map<pair<int, int>, float> distances;
+    map<pair<int, int>, float> match_fraction;
     map<pair<int, int>, pair<int, int>> match_count;
     map<pair<int, int>, vector<DMatch>>
         image_i_j_matches;
@@ -68,6 +70,7 @@ int main(int argc, const char *argv[])
     else if (meta_parser["matching_heuristics"] == 2)
     {
         get_Dij_by_match_count(all_images, image_i_j_matches, image_i_j_homography_mask, match_count);
+        get_match_fraction(match_count, match_fraction);
     }
     else
     {
@@ -85,14 +88,22 @@ int main(int argc, const char *argv[])
     waitKey(0);
 }
 
+void get_match_fraction(map<pair<int, int>, pair<int, int>> match_count, map<pair<int, int>, float> match_fraction)
+{
+    for (auto i = match_count.begin(); i != match_count.end(); i++)
+    {
+        match_fraction[make_pair(std::get<0>(i->first), std::get<1>(i->first))] = (float)(std::get<0>(i->second) / (float)std::get<1>(i->second));
+        cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
+             << " = " << match_fraction[make_pair(std::get<0>(i->first), std::get<1>(i->first))] << endl;
+    }
+}
 void get_Dij_by_match_count(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, pair<int, int>> &match_count)
 {
     for (size_t i = 0; i < all_images.size(); i++)
     {
         for (size_t j = i + 1; j < all_images.size(); j++)
         {
-            // cout << " [" << i + 1 << " , " << j + 1 << " ] = " << countNonZero(image_i_j_homography_mask[make_pair(i, j)]) << " Size = " << image_i_j_homography_mask[make_pair(i, j)].size().height << endl;
-            // cout << " [" << i << " , " << j << " ] = " << image_i_j_homography_mask[make_pair(i, j)] << endl;
+            match_count[make_pair(i, j)] = make_pair(countNonZero(image_i_j_homography_mask[make_pair(i, j)]), image_i_j_homography_mask[make_pair(i, j)].size().height);
         }
     }
 }

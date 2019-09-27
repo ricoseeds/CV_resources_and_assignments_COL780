@@ -27,7 +27,7 @@ int BlendLaplacian(Mat l8u, Mat r8u);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 
 const double kDistanceCoef = 4.0;
-const int kMaxMatchingSize = 20;
+const int kMaxMatchingSize = 80;
 
 // Reference
 // https://www.morethantechnical.com/2011/11/13/just-a-simple-laplacian-pyramid-blender-using-opencv-wcode/
@@ -191,7 +191,7 @@ int main(int argc, const char *argv[])
     Mat img_matches;
     drawMatches(input_1, kpts_image_1, input_2, kpts_image_2, matches, img_matches, Scalar::all(-1),
                 Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-    // imshow("matched_image", img_matches);
+    imshow("matched_image", img_matches);
 
     vector<char> match_mask(matches.size(), 1);
     keypoints_distance.reserve(matches.size());
@@ -214,7 +214,7 @@ int main(int argc, const char *argv[])
     std::cout << "normalized_distance: " << normalized_distance << std::endl;
 
     Mat hmask;
-    Mat H = findHomography(kpts_1, kpts_2, RANSAC, 100, hmask, 2000, 0.998);
+    Mat H = findHomography(kpts_1, kpts_2, RANSAC, 3, hmask, 4000, 0.998);
     cout << "HOMO mask : " << hmask;
     cout << "Keypoint 1 size = " << kpts_1.size() << " Keypoint_2_size = " << kpts_2.size() << endl;
     cout << "Homography matrix  : " << H << endl;

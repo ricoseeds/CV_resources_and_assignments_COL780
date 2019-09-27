@@ -27,7 +27,7 @@ int BlendLaplacian(Mat l8u, Mat r8u);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 
 const double kDistanceCoef = 4.0;
-const int kMaxMatchingSize = 80;
+const int kMaxMatchingSize = 50;
 
 // Reference
 // https://www.morethantechnical.com/2011/11/13/just-a-simple-laplacian-pyramid-blender-using-opencv-wcode/

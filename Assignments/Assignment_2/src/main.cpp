@@ -58,7 +58,7 @@ int main(int argc, const char *argv[])
         image_i_j_matches_point2f_train[make_pair(index_i, index_j)] = kpts_b;
         Mat hmask;
         // Good result for high values of ransac_re_proj_threshold
-        Mat H = findHomography(kpts_a, kpts_b, RANSAC, meta_parser["ransac_re_proj_threshold"], hmask, 2000, 0.998);
+        Mat H = findHomography(kpts_a, kpts_b, RANSAC, meta_parser["ransac_re_proj_threshold"], hmask, 4000, 0.998);
         image_i_j_homography[make_pair(index_i, index_j)] = H;
         image_i_j_homography_mask[make_pair(index_i, index_j)] = hmask;
     }

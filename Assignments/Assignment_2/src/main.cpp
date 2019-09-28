@@ -27,7 +27,7 @@ void show_keypoints(Mat &input, Mat &output, vector<KeyPoint> &kpts);
 Point2f compute_COG(vector<KeyPoint> &kpts);
 void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vector<KeyPoint> &kpts);
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
-int BlendLaplacian(Mat l8u, Mat r8u);
+void linear_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 
 const double kDistanceCoef = 4.0;
@@ -122,19 +122,26 @@ int main(int argc, const char *argv[])
                           WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
 
     //BlendLaplacian(input_1, result);
-    Mat blended_padded;
-    float alpha = 0.4;
-    addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1,
-                blended_padded);
-    imshow("Blended warp, padded crop", blended_padded);
 
-    // imwrite("data/image_dataset/1/23.jpg", blended_padded);
-    // cv::Mat half(result, cv::Rect(0, 0, input_1.cols, input_1.rows));
-    // input_1.copyTo(half);
-    // imshow("Result Panorama", result);
+
+	// Linearly blend
+	{
+		Mat lin_blended;
+		linear_blend(src_warped, dst_padded, lin_blended);
+		//imshow("Blended warp, padded crop", lin_blended);
+		imwrite("C:/Projects/Acads/out/blended.jpg", lin_blended);
+	}
 
     waitKey(0);
     return 0;
+}
+
+
+// Blend linearly two images
+void linear_blend(const Mat &src_warped, const Mat &dst_padded, Mat& blended)
+{
+	float alpha = 0.4;
+	addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1, blended);
 }
 
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)
@@ -319,8 +326,8 @@ void warpPerspectivePadded(
 
 	imshow("dst", dst);
     copyMakeBorder(dst, dst_padded, pad_top, pad_bot, pad_left, pad_right, borderMode, borderValue);
-    imshow("dst_padded", dst_padded);
-	//imwrite("C:/Projects/Acads/out/dst_padded.jpg", dst_padded);
+    //imshow("dst_padded", dst_padded);
+	imwrite("C:/Projects/Acads/out/dst_padded.jpg", dst_padded);
 
     // transform src into larger window
     int dst_pad_h = dst_padded.rows;
@@ -329,6 +336,6 @@ void warpPerspectivePadded(
     warpPerspective(src, src_warped, transf, Size(dst_pad_w, dst_pad_h),
                     flags, borderMode, borderValue);
 
-	imshow("src_warped", src_warped);
-	//imwrite("C:/Projects/Acads/out/src_warped.jpg", src_warped);
+	//imshow("src_warped", src_warped);
+	imwrite("C:/Projects/Acads/out/src_warped.jpg", src_warped);
 }

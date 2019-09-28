@@ -1,5 +1,53 @@
 #include "bfs.h"
 
+int max_deg_row(vector<vector<int>> &G)
+{
+    int max = 0, count = 0, row = 0;
+    for (size_t i = 0; i < G.size(); i++)
+    {
+        count = 0;
+        for (size_t j = 0; j < G[i].size(); j++)
+        {
+            if (G[i][j])
+            {
+                count++;
+            }
+        }
+        if (count > max)
+        {
+            row = i;
+            max = count;
+        }
+    }
+    return row;
+}
+bool is_connected_from_source(vector<vector<int>> &G, vector<int> &visited, int source)
+{
+    queue<int> Q;
+    Q.push(source);
+    int current;
+    while (!Q.empty())
+    {
+        current = Q.front();
+        visited[current] = 1;
+        Q.pop();
+        for (size_t i = 0; i < G.size(); i++)
+        {
+            if (G[current][i] == 1 && visited[i] == 0)
+            {
+                Q.push(i);
+            }
+        }
+    }
+    for (size_t i = 0; i < visited.size(); i++)
+    {
+        if (visited[i] == 0)
+        {
+            return false;
+        }
+    }
+    return true;
+}
 void bfs(vector<vector<int>> &G, int source, map<int, vector<int>> &result)
 {
     queue<int> Q;
@@ -27,27 +75,17 @@ void bfs(vector<vector<int>> &G, int source, map<int, vector<int>> &result)
         }
     }
     compute_all_paths(parent, result, source);
-    for (size_t i = 0; i < result.size(); i++)
-    {
-        cout << " <" << i << "> = { ";
-        for (size_t j = 0; j < result[i].size(); j++)
-        {
-            cout << result[i][j] << " ";
-        }
-        cout << " } " << endl;
-    }
 }
 void compute_all_paths(vector<int> parent, map<int, vector<int>> &result, int source)
 {
     for (size_t i = 0; i < parent.size(); i++)
     {
         // int current = i;
-        if (i != source)
+        if (i != source && parent[i] != -1)
         {
             int ite = i;
             while (ite != source)
             {
-                cout << ite;
                 result[i].push_back(ite);
                 ite = parent[ite];
             }

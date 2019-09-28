@@ -84,11 +84,54 @@ int main(int argc, const char *argv[])
             match_fraction.begin(), match_fraction.end(), compFunctor);
         cout << " \n\n ---- \n\n";
         match_fraction.clear();
-        for (auto i : match_fract_set)
+        int count = 0;
+        // generate graph
+        vector<vector<int>> G;
+        G.resize(all_images.size(), std::vector<int>(all_images.size(), 0));
+        for (auto &i : match_fract_set)
         {
-            cout << "<" << std::get<0>(i.first) + 1 << ", " << std::get<1>(i.first) + 1 << ">"
-                 << " = " << i.second << endl;
+            // cout << "<" << std::get<0>(i.first) + 1 << ", " << std::get<1>(i.first) + 1 << ">"
+            //      << " = " << i.second << endl;
             match_fraction[make_pair(get<0>(i.first), get<1>(i.first))] = i.second;
+            if (count++ < all_images.size() - 1)
+            {
+                G[(int)std::get<0>(i.first)][(int)std::get<1>(i.first)] = 1;
+                G[(int)std::get<1>(i.first)][(int)std::get<0>(i.first)] = 1;
+                cout << "<" << std::get<0>(i.first) + 1 << ", " << std::get<1>(i.first) + 1 << ">"
+                     << " = " << i.second << endl;
+            }
+            // G[(int)std::get<0>(i.first)][(int)std::get<1>(i.first)] = 1.0 - i.second;
+            // G[(int)std::get<1>(i.first)][(int)std::get<0>(i.first)] = 1.0 - i.second;
+            // cout << G[std::get<0>(i.first)][std::get<1>(i.first)];
+        }
+        cout << "graph : " << endl;
+        for (size_t i = 0; i < G.size(); i++)
+        {
+            for (size_t j = 0; j < G[i].size(); j++)
+            {
+                cout << G[i][j] << " ";
+            }
+            cout << endl;
+        }
+        int source = max_deg_row(G);
+        cout << "SOURCE = " << source << endl;
+        vector<int> visited(G.size(), 0);
+        map<int, vector<int>> result_map;
+        is_connected_from_source(G, visited, source);
+        cout << "Visited list " << endl;
+        for (size_t i = 0; i < visited.size(); i++)
+        {
+            cout << visited[i] << " ";
+        }
+        bfs(G, source, result_map);
+        for (size_t i = 0; i < result_map.size(); i++)
+        {
+            cout << " <" << i << "> = { ";
+            for (size_t j = 0; j < result_map[i].size(); j++)
+            {
+                cout << result_map[i][j] << " ";
+            }
+            cout << " } " << endl;
         }
     }
     else

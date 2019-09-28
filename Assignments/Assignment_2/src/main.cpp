@@ -9,8 +9,11 @@
 #include <opencv2/xfeatures2d/nonfree.hpp>
 #include <opencv2/imgproc.hpp> // drawing the COG
 #include <opencv2/calib3d.hpp>
+#include <opencv2/stitching/detail/blenders.hpp>
+#include <opencv2/stitching/detail/util.hpp>
 
 using namespace cv;
+using namespace cv::detail;
 using cv::Mat;
 using cv::Ptr;
 using cv::xfeatures2d::SIFT;
@@ -28,6 +31,7 @@ Point2f compute_COG(vector<KeyPoint> &kpts);
 void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vector<KeyPoint> &kpts);
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 void linear_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended);
+void feather_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 
 const double kDistanceCoef = 4.0;
@@ -132,6 +136,16 @@ int main(int argc, const char *argv[])
 		imwrite("C:/Projects/Acads/out/blended.jpg", lin_blended);
 	}
 
+	// Feather blend
+	{
+		Mat fe_blended;
+		//feather_blend(src_warped, dst_padded, fe_blended);
+		//imshow("Blended warp, padded crop", lin_blended);
+	}
+
+
+
+
     waitKey(0);
     return 0;
 }
@@ -143,6 +157,61 @@ void linear_blend(const Mat &src_warped, const Mat &dst_padded, Mat& blended)
 	float alpha = 0.4;
 	addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1, blended);
 }
+
+
+void feather_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended)
+{
+	cv::Mat grayscaleMat(src_warped.size(), CV_8U);
+	//Convert BGR to Gray
+	cv::cvtColor(src_warped, grayscaleMat, cv::COLOR_BGR2GRAY);
+	//Binary image
+	cv::Mat src_mask(grayscaleMat.size(), grayscaleMat.type());
+	//Apply thresholding
+	cv::threshold(grayscaleMat, src_mask, 1, 255, cv::THRESH_BINARY);
+	imwrite("C:/Projects/Acads/out/binaryMat.jpg", src_mask);
+
+
+	cv::Mat grayscaleMat2(dst_padded.size(), CV_8U);
+	//Convert BGR to Gray
+	cv::cvtColor(dst_padded, grayscaleMat2, cv::COLOR_BGR2GRAY);
+	//Binary image
+	cv::Mat dst_mask(grayscaleMat2.size(), grayscaleMat2.type());
+	//Apply thresholding
+	cv::threshold(grayscaleMat2, dst_mask, 1, 255, cv::THRESH_BINARY);
+	imwrite("C:/Projects/Acads/out/dst_mask.jpg", dst_mask);
+
+
+	Ptr<Blender> blender;
+	float blend_strength = 5;
+	vector<Point> corners(2);
+	vector<Size> sizes(2);
+
+	corners[0].x = 0;
+	corners[0].y = src_warped.rows;
+	corners[0].x = 0;
+	corners[0].y = dst_padded.rows;
+
+	sizes[0] = src_warped.size();
+	sizes[1] = dst_padded.size();
+
+	blender = Blender::createDefault(Blender::FEATHER, false);
+	FeatherBlender* fb = dynamic_cast<FeatherBlender*>(blender.get());
+
+	Size dst_sz = resultRoi(corners, sizes).size();
+	float blend_width = sqrt(static_cast<float>(dst_sz.area())) * blend_strength / 100.f;
+	fb->setSharpness(1.f / blend_width);
+
+	blender->prepare(corners, sizes);
+
+	blender->feed(src_warped, src_mask, corners[0]);
+	blender->feed(dst_padded, dst_mask, corners[1]);
+
+	Mat result, result_mask;
+	blender->blend(result, result_mask);
+
+	imwrite("C:/Projects/Acads/out/result.jpg", result);
+}
+
 
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)
 {

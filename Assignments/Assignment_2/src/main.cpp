@@ -97,7 +97,7 @@ int main(int argc, const char *argv[])
             {
                 G[(int)std::get<0>(i.first)][(int)std::get<1>(i.first)] = 1;
                 G[(int)std::get<1>(i.first)][(int)std::get<0>(i.first)] = 1;
-                cout << "<" << std::get<0>(i.first) + 1 << ", " << std::get<1>(i.first) + 1 << ">"
+                cout << "<" << std::get<0>(i.first) << ", " << std::get<1>(i.first) << ">"
                      << " = " << i.second << endl;
             }
             // G[(int)std::get<0>(i.first)][(int)std::get<1>(i.first)] = 1.0 - i.second;
@@ -116,13 +116,21 @@ int main(int argc, const char *argv[])
         int source = max_deg_row(G);
         cout << "SOURCE = " << source << endl;
         vector<int> visited(G.size(), 0);
+        vector<int> rejection_list;
         map<int, vector<int>> result_map;
-        is_connected_from_source(G, visited, source);
+        is_connected_from_source(G, visited, source, rejection_list);
         cout << "Visited list " << endl;
         for (size_t i = 0; i < visited.size(); i++)
         {
             cout << visited[i] << " ";
         }
+        cout << endl;
+        cout << "/nRejection list " << endl;
+        for (size_t i = 0; i < rejection_list.size(); i++)
+        {
+            cout << rejection_list[i] << " ";
+        }
+        cout << endl;
         bfs(G, source, result_map);
         for (size_t i = 0; i < result_map.size(); i++)
         {

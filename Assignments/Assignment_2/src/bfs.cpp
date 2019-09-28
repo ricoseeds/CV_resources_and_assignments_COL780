@@ -21,7 +21,7 @@ int max_deg_row(vector<vector<int>> &G)
     }
     return row;
 }
-bool is_connected_from_source(vector<vector<int>> &G, vector<int> &visited, int source)
+bool is_connected_from_source(vector<vector<int>> &G, vector<int> &visited, int source, vector<int> &rejection_list)
 {
     queue<int> Q;
     Q.push(source);
@@ -39,12 +39,18 @@ bool is_connected_from_source(vector<vector<int>> &G, vector<int> &visited, int 
             }
         }
     }
+    bool flag = false;
     for (size_t i = 0; i < visited.size(); i++)
     {
         if (visited[i] == 0)
         {
-            return false;
+            rejection_list.push_back(i);
+            flag = true;
         }
+    }
+    if (flag)
+    {
+        return false;
     }
     return true;
 }

@@ -222,7 +222,15 @@ int main(int argc, const char *argv[])
     // cv::Mat result;
     // warpPerspective(input_2, result, H.inv(), cv::Size(input_1.cols + input_2.cols, input_2.rows), INTER_CUBIC);
     // imshow("Result_warped", result);
+    double scale_factor = 2.0;
     Mat src_warped, dst_padded;
+    Mat scl = Mat::eye(3, 3, CV_64F);
+    scl = scl * scale_factor;
+    scl.at<double>(2, 2) = 1;
+    H = scl.inv() * H * scl;
+    resize(input_1, input_1, Size(input_1.size().width / scale_factor, input_1.size().height / scale_factor), cv::INTER_AREA);
+    resize(input_2, input_2, Size(input_2.size().width / scale_factor, input_2.size().height / scale_factor), cv::INTER_AREA);
+
     warpPerspectivePadded(input_1, input_2, H.inv(), src_warped, dst_padded,
                           WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
 

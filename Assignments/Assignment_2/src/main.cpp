@@ -32,7 +32,7 @@ int main(int argc, const char *argv[])
     map<pair<int, int>, vector<Point2f>> image_i_j_matches_point2f_train;
     map<pair<int, int>, Mat> image_i_j_homography;
     map<pair<int, int>, Mat> image_i_j_homography_mask;
-
+    map<pair<int, int>, Mat> image_i_j_homography_result;
     for (size_t i = 0; i < all_images.size(); i++)
     {
         for (size_t j = i + 1; j < all_images.size(); j++)
@@ -126,6 +126,8 @@ int main(int argc, const char *argv[])
         }
         cout << endl;
         cout << "/nRejection list " << endl;
+        // add source to rejection list
+        rejection_list.push_back(source);
         for (size_t i = 0; i < rejection_list.size(); i++)
         {
             cout << rejection_list[i] << " ";
@@ -141,20 +143,69 @@ int main(int argc, const char *argv[])
             }
             cout << " } " << endl;
         }
+        // Do stitching with a given source
+        // cout << "DEBUG " << endl;
+        for (size_t i = 0; i < all_images.size(); i++)
+        {
+            if (!(std::find(rejection_list.begin(), rejection_list.end(), i) != rejection_list.end()))
+            {
+                // InDirect homography
+
+                Mat H = Mat::eye(3, 3, CV_64F);
+                if (result_map[i].size() > 2)
+                {
+                    Mat H_next;
+                    for (size_t k = result_map[i].size() - 1; k > 0; k--)
+                    {
+                        H_next = image_i_j_homography[make_pair(result_map[i][k], result_map[i][k - 1])];
+                        H = H_next * H;
+                        // cout << " k =  " << result_map[i][k] << ", k - 1 = " << result_map[i][k - 1] << endl;
+                    }
+                    image_i_j_homography_result[make_pair(source, result_map[i][0])] = H.inv();
+                }
+                else
+                {
+                    H = image_i_j_homography[make_pair(source, i)];
+                    image_i_j_homography_result[make_pair(source, i)] = H.inv();
+                }
+            }
+        }
+        cout << "HOMO REULT" << endl;
+        int c = 0;
+        for (auto i = image_i_j_homography_result.begin(); i != image_i_j_homography_result.end(); i++)
+        {
+            // cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
+            //      << " = " << i->second << endl;
+            if (c++ < 2)
+            {
+                int img_1 = get<0>(i->first);
+                int img_2 = get<1>(i->first);
+                Mat H = image_i_j_homography_result[make_pair(img_1, img_2)];
+                Mat src_warped, dst_padded;
+                warpPerspectivePadded(all_images[img_2], all_images[img_1], H.inv(), src_warped, dst_padded,
+                                      WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
+
+                Mat blended_padded;
+                float alpha = 0.4;
+                addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1,
+                            blended_padded);
+                imshow("Blended warp, padded crop", blended_padded);
+            }
+        }
     }
     else
     {
         cerr << "Choose [1 | 2] in the 'matching_heuristics' field of meta.json";
     }
 
-    // print distances
-    for (auto i = distances.begin(); i != distances.end(); i++)
-    {
-        cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
-             << " = " << i->second << endl;
-    }
+    // // print distances
+    // for (auto i = distances.begin(); i != distances.end(); i++)
+    // {
+    //     cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
+    //          << " = " << i->second << endl;
+    // }
 
-    imshow("img", all_images[0]);
+    // imshow("img", all_images[0]);
     waitKey(0);
 }
 

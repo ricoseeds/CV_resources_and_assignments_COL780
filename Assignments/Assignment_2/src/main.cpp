@@ -170,27 +170,41 @@ int main(int argc, const char *argv[])
                 }
             }
         }
-        cout << "HOMO REULT" << endl;
+        // Do stitching
+        cv::Mat black_img(cv::Size(2000, 1000), CV_64FC1, Scalar(0));
+        Mat result_referece_img = black_img;
+        Mat T = Mat::eye(3, 3, CV_64FC1);
+        T.at<double>(0, 2) = result_referece_img.cols / 2;
+        T.at<double>(1, 2) = result_referece_img.rows / 2;
+        warpPerspective(all_images[source], result_referece_img, T, Size(result_referece_img.cols, result_referece_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
+        imshow("Reference", result_referece_img);
         int c = 0;
+        Mat blended_padded;
+        vector<Mat> homified_images;
+        homified_images.push_back(result_referece_img);
         for (auto i = image_i_j_homography_result.begin(); i != image_i_j_homography_result.end(); i++)
         {
-            // cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
-            //      << " = " << i->second << endl;
-            if (c++ < 2)
-            {
-                int img_1 = get<0>(i->first);
-                int img_2 = get<1>(i->first);
-                Mat H = image_i_j_homography_result[make_pair(img_1, img_2)];
-                Mat src_warped, dst_padded;
-                warpPerspectivePadded(all_images[img_2], all_images[img_1], H.inv(), src_warped, dst_padded,
-                                      WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
-
-                Mat blended_padded;
-                float alpha = 0.4;
-                addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1,
-                            blended_padded);
-                imshow("Blended warp, padded crop", blended_padded);
-            }
+            // if (c++ < 4)
+            // {
+            int img_2 = get<1>(i->first);
+            Mat H = image_i_j_homography_result[make_pair(source, img_2)];
+            Mat tmp;
+            warpPerspective(all_images[img_2], tmp, T * H, Size(black_img.cols, black_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
+            homified_images.push_back(tmp);
+            // imshow("Base LOOP", black_img);
+            //blend
+            // float alpha = 0.5;
+            // addWeighted(black_img, alpha, result_referece_img, (1.0 - alpha), 0.1,
+            //             blended_padded);
+            // imshow("Blended warp, padded crop", blended_padded);
+            // black_img = blended_padded;
+            // }
+        }
+        // write to file -- to be deleted
+        for (size_t i = 0; i < homified_images.size(); i++)
+        {
+            imwrite("/Users/arghachakraborty/Projects/CV_assignments/data/homified_2/test" + to_string(i) + ".jpg", homified_images[i]);
+            // imshow("dasda", homified_images[i]);
         }
     }
     else

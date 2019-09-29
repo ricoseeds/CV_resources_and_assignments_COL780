@@ -9,13 +9,18 @@
 #include <opencv2/xfeatures2d/nonfree.hpp>
 #include <opencv2/imgproc.hpp> // drawing the COG
 #include <opencv2/calib3d.hpp>
+#include <opencv2/stitching/detail/blenders.hpp>
+#include <opencv2/stitching/detail/util.hpp>
 
 using namespace cv;
+using namespace cv::detail;
 using cv::Mat;
 using cv::Ptr;
 using cv::xfeatures2d::SIFT;
 using namespace std;
 using json = nlohmann::json;
+
+#define DEBUG_MATS
 
 // prototypes
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc);
@@ -23,127 +28,12 @@ void show_keypoints(Mat &input, Mat &output, vector<KeyPoint> &kpts);
 Point2f compute_COG(vector<KeyPoint> &kpts);
 void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vector<KeyPoint> &kpts);
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
-int BlendLaplacian(Mat l8u, Mat r8u);
+void linear_blend(const Mat &src_warped, const Mat &dst_padded, Mat &blended);
+void feather_blend(const Mat &src_warped, const Mat &dst_padded, Mat &blended);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 
 const double kDistanceCoef = 4.0;
 const int kMaxMatchingSize = 50;
-
-// Reference
-// https://www.morethantechnical.com/2011/11/13/just-a-simple-laplacian-pyramid-blender-using-opencv-wcode/
-class LaplacianBlending
-{
-private:
-    Mat_<Vec3f> left;
-    Mat_<Vec3f> right;
-    Mat_<float> blendMask;
-
-    vector<Mat_<Vec3f>> leftLapPyr, rightLapPyr, resultLapPyr;
-    Mat leftSmallestLevel, rightSmallestLevel, resultSmallestLevel;
-    vector<Mat_<Vec3f>> maskGaussianPyramid; //masks are 3-channels for easier multiplication with RGB
-
-    int levels;
-
-    void buildPyramids()
-    {
-        buildLaplacianPyramid(left, leftLapPyr, leftSmallestLevel);
-        buildLaplacianPyramid(right, rightLapPyr, rightSmallestLevel);
-        buildGaussianPyramid();
-    }
-
-    void buildGaussianPyramid()
-    {
-        assert(leftLapPyr.size() > 0);
-
-        maskGaussianPyramid.clear();
-        Mat currentImg;
-        cvtColor(blendMask, currentImg, COLOR_GRAY2BGR);
-        maskGaussianPyramid.push_back(currentImg); //highest level
-
-        currentImg = blendMask;
-        for (int l = 1; l < levels + 1; l++)
-        {
-            Mat _down;
-            if (leftLapPyr.size() > l)
-            {
-                pyrDown(currentImg, _down, leftLapPyr[l].size());
-            }
-            else
-            {
-                pyrDown(currentImg, _down, leftSmallestLevel.size()); //smallest level
-            }
-
-            Mat down;
-            cvtColor(_down, down, COLOR_GRAY2BGR);
-            maskGaussianPyramid.push_back(down);
-            currentImg = _down;
-        }
-    }
-
-    void buildLaplacianPyramid(const Mat &img, vector<Mat_<Vec3f>> &lapPyr, Mat &smallestLevel)
-    {
-        lapPyr.clear();
-        Mat currentImg = img;
-        for (int l = 0; l < levels; l++)
-        {
-            Mat down, up;
-            pyrDown(currentImg, down);
-            pyrUp(down, up, currentImg.size());
-            Mat lap = currentImg - up;
-            lapPyr.push_back(lap);
-            currentImg = down;
-        }
-        currentImg.copyTo(smallestLevel);
-    }
-
-    Mat_<Vec3f> reconstructImgFromLapPyramid()
-    {
-        Mat currentImg = resultSmallestLevel;
-        for (int l = levels - 1; l >= 0; l--)
-        {
-            Mat up;
-
-            pyrUp(currentImg, up, resultLapPyr[l].size());
-            currentImg = up + resultLapPyr[l];
-        }
-        return currentImg;
-    }
-
-    void blendLapPyrs()
-    {
-        resultSmallestLevel = leftSmallestLevel.mul(maskGaussianPyramid.back()) +
-                              rightSmallestLevel.mul(Scalar(1.0, 1.0, 1.0) - maskGaussianPyramid.back());
-        for (int l = 0; l < levels; l++)
-        {
-            Mat A = leftLapPyr[l].mul(maskGaussianPyramid[l]);
-            Mat antiMask = Scalar(1.0, 1.0, 1.0) - maskGaussianPyramid[l];
-            Mat B = rightLapPyr[l].mul(antiMask);
-            Mat_<Vec3f> blendedLevel = A + B;
-
-            resultLapPyr.push_back(blendedLevel);
-        }
-    }
-
-public:
-    LaplacianBlending(const Mat_<Vec3f> &_left, const Mat_<Vec3f> &_right, const Mat_<float> &_blendMask, int _levels) : left(_left), right(_right), blendMask(_blendMask), levels(_levels)
-    {
-        assert(_left.size() == _right.size());
-        assert(_left.size() == _blendMask.size());
-        buildPyramids();
-        blendLapPyrs();
-    };
-
-    Mat_<Vec3f> blend()
-    {
-        return reconstructImgFromLapPyramid();
-    }
-};
-
-Mat_<Vec3f> LaplacianBlend(const Mat_<Vec3f> &l, const Mat_<Vec3f> &r, const Mat_<float> &m)
-{
-    LaplacianBlending lb(l, r, m, 4);
-    return lb.blend();
-}
 
 int main(int argc, const char *argv[])
 {
@@ -152,11 +42,13 @@ int main(int argc, const char *argv[])
 #else
     std::ifstream ifile("Assignments/Assignment_2/input/meta.json");
 #endif
+
     json meta_parser;
     ifile >> meta_parser;
-    //
+
     vector<KeyPoint> kpts_image_1;
     vector<KeyPoint> kpts_image_2;
+
     Mat desc_1;
     Mat desc_2;
     Mat input_1 = imread(meta_parser["data"][0], IMREAD_COLOR); //Load as grayscale
@@ -188,10 +80,12 @@ int main(int argc, const char *argv[])
     vector<DMatch> matches;
     match(desc_1, desc_2, matches);
 
+#ifdef DEBUG_MATCHES
     Mat img_matches;
     drawMatches(input_1, kpts_image_1, input_2, kpts_image_2, matches, img_matches, Scalar::all(-1),
                 Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
     imshow("matched_image", img_matches);
+#endif
 
     vector<char> match_mask(matches.size(), 1);
     keypoints_distance.reserve(matches.size());
@@ -222,7 +116,7 @@ int main(int argc, const char *argv[])
     // cv::Mat result;
     // warpPerspective(input_2, result, H.inv(), cv::Size(input_1.cols + input_2.cols, input_2.rows), INTER_CUBIC);
     // imshow("Result_warped", result);
-    double scale_factor = 2.0;
+    double scale_factor = 2.0; // Our tuning knob for image size for the final stitched image
     Mat src_warped, dst_padded;
     Mat scl = Mat::eye(3, 3, CV_64F);
     scl = scl * scale_factor;
@@ -234,33 +128,89 @@ int main(int argc, const char *argv[])
     warpPerspectivePadded(input_1, input_2, H.inv(), src_warped, dst_padded,
                           WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
 
-    //BlendLaplacian(input_1, result);
     Mat blended_padded;
     float alpha = 0.4;
     addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1,
                 blended_padded);
     imshow("Blended warp, padded crop", blended_padded);
-    // imwrite("data/image_dataset/1/23.jpg", blended_padded);
-    // cv::Mat half(result, cv::Rect(0, 0, input_1.cols, input_1.rows));
-    // input_1.copyTo(half);
-    // imshow("Result Panorama", result);
+
+    //BlendLaplacian(input_1, result);
+
+    // Linearly blend
+    {
+        Mat lin_blended;
+        linear_blend(src_warped, dst_padded, lin_blended);
+        //imshow("Blended warp, padded crop", lin_blended);
+        imwrite("C:/Projects/Acads/out/blended.jpg", lin_blended);
+    }
+
+    // Feather blend
+    {
+        Mat fe_blended;
+        //feather_blend(src_warped, dst_padded, fe_blended);
+        //imshow("Blended warp, padded crop", lin_blended);
+    }
 
     waitKey(0);
     return 0;
 }
 
-int BlendLaplacian(Mat l8u, Mat r8u)
+// Blend linearly two images
+void linear_blend(const Mat &src_warped, const Mat &dst_padded, Mat &blended)
 {
-    Mat_<Vec3f> l;
-    l8u.convertTo(l, CV_32F, 1.0 / 255.0);
-    Mat_<Vec3f> r;
-    r8u.convertTo(r, CV_32F, 1.0 / 255.0);
+    float alpha = 0.4;
+    addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1, blended);
+}
 
-    Mat_<float> m(l.rows, l.cols, 0.0);
-    m(Range::all(), Range(0, m.cols / 2)) = 1.0;
+void feather_blend(const Mat &src_warped, const Mat &dst_padded, Mat &blended)
+{
+    cv::Mat grayscaleMat(src_warped.size(), CV_8U);
+    //Convert BGR to Gray
+    cv::cvtColor(src_warped, grayscaleMat, cv::COLOR_BGR2GRAY);
+    //Binary image
+    cv::Mat src_mask(grayscaleMat.size(), grayscaleMat.type());
+    //Apply thresholding
+    cv::threshold(grayscaleMat, src_mask, 1, 255, cv::THRESH_BINARY);
+    imwrite("C:/Projects/Acads/out/binaryMat.jpg", src_mask);
 
-    Mat_<Vec3f> blend = LaplacianBlend(l, r, m);
-    imshow("blended", blend);
+    cv::Mat grayscaleMat2(dst_padded.size(), CV_8U);
+    //Convert BGR to Gray
+    cv::cvtColor(dst_padded, grayscaleMat2, cv::COLOR_BGR2GRAY);
+    //Binary image
+    cv::Mat dst_mask(grayscaleMat2.size(), grayscaleMat2.type());
+    //Apply thresholding
+    cv::threshold(grayscaleMat2, dst_mask, 1, 255, cv::THRESH_BINARY);
+    imwrite("C:/Projects/Acads/out/dst_mask.jpg", dst_mask);
+
+    Ptr<Blender> blender;
+    float blend_strength = 5;
+    vector<Point> corners(2);
+    vector<Size> sizes(2);
+
+    corners[0].x = 0;
+    corners[0].y = src_warped.rows;
+    corners[0].x = 0;
+    corners[0].y = dst_padded.rows;
+
+    sizes[0] = src_warped.size();
+    sizes[1] = dst_padded.size();
+
+    blender = Blender::createDefault(Blender::FEATHER, false);
+    FeatherBlender *fb = dynamic_cast<FeatherBlender *>(blender.get());
+
+    Size dst_sz = resultRoi(corners, sizes).size();
+    float blend_width = sqrt(static_cast<float>(dst_sz.area())) * blend_strength / 100.f;
+    fb->setSharpness(1.f / blend_width);
+
+    blender->prepare(corners, sizes);
+
+    blender->feed(src_warped, src_mask, corners[0]);
+    blender->feed(dst_padded, dst_mask, corners[1]);
+
+    Mat result, result_mask;
+    blender->blend(result, result_mask);
+
+    imwrite("C:/Projects/Acads/out/result.jpg", result);
 }
 
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)
@@ -325,7 +275,18 @@ void warpPerspectivePadded(
     int flags, int borderMode, const Scalar &borderValue) // OpenCV params
 {
 
+#ifdef DEBUG_MATS
+    cout << __FUNCTION__ << " " << __LINE__ << " Homography Mat M " << endl
+         << M << endl;
+#endif
+
     Mat transf = M / M.at<double>(2, 2); // ensure a legal homography
+
+#ifdef DEBUG_MATS
+    cout << __FUNCTION__ << " " << __LINE__ << " transf " << endl
+         << transf << endl;
+#endif
+
     if (flags == WARP_INVERSE_MAP ||
         flags == INTER_LINEAR + WARP_INVERSE_MAP ||
         flags == INTER_NEAREST + WARP_INVERSE_MAP)
@@ -334,9 +295,15 @@ void warpPerspectivePadded(
         flags -= WARP_INVERSE_MAP;
     }
 
+#ifdef DEBUG_MATS
+    cout << __FUNCTION__ << " " << __LINE__ << " transf " << endl
+         << transf << endl;
+#endif
     // it is enough to find where the corners of the image go to find
     // the padding bounds; points in clockwise order from origin
     // transforming the source
+
+    // SR>> Acutally you are taking anti-clockwise order
     int dst_h = dst.rows;
     int dst_w = dst.cols;
     Point2f fixed_1 = Point2f(0, 0);
@@ -361,6 +328,7 @@ void warpPerspectivePadded(
     cout << "init_pts[1] : " << init_pts[1] << endl;
     cout << "init_pts[2] : " << init_pts[2] << endl;
     cout << "init_pts[3] : " << init_pts[3] << endl;
+
     // perspective transform
     perspectiveTransform(init_pts, transf_pts, transf);
     cout << "MAT << " << transf << endl;
@@ -401,8 +369,19 @@ void warpPerspectivePadded(
     }
 
     transl_transf.convertTo(transl_transf, CV_64F);
+
+#ifdef DEBUG_MATS
+    cout << __FUNCTION__ << " " << __LINE__ << "transl_transf" << endl
+         << transl_transf << endl;
+#endif
+
     transf = transl_transf * transf;
     transf /= transf.at<float>(2, 2);
+
+#ifdef DEBUG_MATS
+    cout << __FUNCTION__ << " " << __LINE__ << "transl_transf" << endl
+         << transl_transf << endl;
+#endif
 
     // create padded destination image
     // int dst_h = dst.rows;
@@ -416,12 +395,19 @@ void warpPerspectivePadded(
     cout << "pad_bot : " << pad_bot << endl;
     cout << "pad_left : " << pad_left << endl;
     cout << "pad_right : " << pad_right << endl;
+
+    imshow("dst", dst);
     copyMakeBorder(dst, dst_padded, pad_top, pad_bot, pad_left, pad_right, borderMode, borderValue);
-    // imshow("indst", dst_padded);
+    //imshow("dst_padded", dst_padded);
+    imwrite("C:/Projects/Acads/out/dst_padded.jpg", dst_padded);
 
     // transform src into larger window
     int dst_pad_h = dst_padded.rows;
     int dst_pad_w = dst_padded.cols;
+    imshow("src", src);
     warpPerspective(src, src_warped, transf, Size(dst_pad_w, dst_pad_h),
                     flags, borderMode, borderValue);
+
+    //imshow("src_warped", src_warped);
+    imwrite("C:/Projects/Acads/out/src_warped.jpg", src_warped);
 }

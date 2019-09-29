@@ -20,8 +20,9 @@ using cv::xfeatures2d::SIFT;
 using namespace std;
 using json = nlohmann::json;
 
+const int MAX_KERNEL_LENGTH = 101;
 
-#define DEBUG_MATS
+//#define DEBUG_MATS
 
 
 // prototypes
@@ -33,7 +34,8 @@ inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 void linear_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended);
 void feather_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
-
+void multi_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended);
+void write_images(const string& name, vector<cv::Mat> image_set);
 const double kDistanceCoef = 4.0;
 const int kMaxMatchingSize = 80;
 
@@ -144,7 +146,10 @@ int main(int argc, const char *argv[])
 	}
 
 
-
+	{
+		Mat blended;
+		multi_blend(src_warped, dst_padded, blended);
+	}
 
     waitKey(0);
     return 0;
@@ -213,6 +218,122 @@ void feather_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended)
 }
 
 
+void multi_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended)
+{
+
+	imwrite("C:/Projects/Acads/out/src_warped.jpg", src_warped);
+	imwrite("C:/Projects/Acads/out/dst_padded.jpg", dst_padded);
+
+
+
+	// Create source masks
+	cv::Mat grayscaleMat;
+	//Convert BGR to Gray
+	cv::cvtColor(src_warped, grayscaleMat, cv::COLOR_BGR2GRAY);
+	//Binary image
+	cv::Mat src_mask;
+	//Apply thresholding
+	cv::threshold(grayscaleMat, src_mask, 1, 255, cv::THRESH_BINARY);
+	//imwrite("C:/Projects/Acads/out/src_mask.jpg", src_mask);
+
+	// Create destination mask 
+	cv::Mat grayscaleMat2;
+	//Convert BGR to Gray
+	cv::cvtColor(dst_padded, grayscaleMat2, cv::COLOR_BGR2GRAY);
+	//Binary image
+	cv::Mat dst_mask;
+	//Apply thresholding
+	cv::threshold(grayscaleMat2, dst_mask, 1, 255, cv::THRESH_BINARY);
+	//imwrite("C:/Projects/Acads/out/dst_mask.jpg", dst_mask);
+
+	//Blurr image
+	vector<cv::Mat> blurred_images1;
+	vector<cv::Mat> blurred_mask1;
+
+	vector<cv::Mat> blurred_images2;
+	vector<cv::Mat> blurred_mask2;
+
+	//First image is the original image
+	blurred_images1.push_back(src_warped);
+	blurred_images2.push_back(dst_padded);
+	for (int i = 21; i < MAX_KERNEL_LENGTH; i = i + 20)
+	{
+		cv::Mat blur_image1;
+		GaussianBlur(src_warped, blur_image1, Size(i, i), 0, 0);
+		blurred_images1.push_back(blur_image1);
+		
+		cv::Mat blur_mask1;
+		GaussianBlur(src_mask, blur_mask1, Size(i, i), 0, 0);
+		blurred_mask1.push_back(blur_mask1);
+
+		cv::Mat blur_image2;
+		GaussianBlur(dst_padded, blur_image2, Size(i, i), 0, 0);
+		blurred_images2.push_back(blur_image2);
+
+
+		cv::Mat blur_mask2;
+		GaussianBlur(dst_mask, blur_mask2, Size(i, i), 0, 0);
+		blurred_mask2.push_back(blur_mask2);
+	}
+
+	//write_images("blurred1_", blurred_images1);
+	//write_images("mask1_", blurred_mask2);
+
+	//write_images("blurred2_", blurred_images2);
+	//write_images("mask2_", blurred_mask2);
+
+	// Diff images
+	vector<cv::Mat> diff_images1;
+	vector<cv::Mat> diff_images2;
+	{
+		cv::Mat diff_image;
+		for (int i = 0; i < blurred_images1.size() - 1; i++)
+		{
+			cv::subtract(blurred_images1[i], blurred_images1[i + 1], diff_image);
+			diff_images1.push_back(diff_image);
+		}
+
+		cv::Mat diff_image2;
+		for (int i = 0; i < blurred_images2.size() - 1; i++)
+		{
+			cv::subtract(blurred_images2[i], blurred_images2[i + 1], diff_image2);
+			diff_images2.push_back(diff_image2);
+		}
+	}
+
+	//write_images("diff2_", diff_images2);
+
+
+	for (int i = 0; i < blurred_mask1.size(); i++)
+	{
+		cv::cvtColor(blurred_mask1[i], blurred_mask1[i], cv::COLOR_GRAY2BGR);
+		cv::cvtColor(blurred_mask2[i], blurred_mask2[i], cv::COLOR_GRAY2BGR);
+	}
+
+	for (int i = 0; i < diff_images1.size(); i++)
+	{
+		multiply(diff_images1[i], blurred_mask1[i], blurred_images1[i], 1.0);
+		multiply(diff_images2[i], blurred_mask2[i], blurred_images2[i], 1.0);
+	}
+
+
+	write_images("mult1_", blurred_images1);
+
+	write_images("mult2_", blurred_images2);
+
+}
+
+
+void write_images(const string& name, vector<cv::Mat> image_set)
+{
+	std::cout << name << " " << image_set.size() << std::endl;
+	
+	for ( int i = 0; i < image_set.size(); i++ ) {
+		stringstream path;
+		path << "C:/Projects/Acads/out/" << name <<"_"<< i << ".jpg";
+		imwrite(path.str(), image_set[i]);
+	}
+}
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)
 {
     Ptr<Feature2D> sift = SIFT::create();

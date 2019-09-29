@@ -36,10 +36,15 @@ void feather_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 void multi_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended);
 void write_images(const string& name, vector<cv::Mat> image_set);
+void create_panorama_simple(vector<Mat>& image_set);
+
 const double kDistanceCoef = 4.0;
 const int kMaxMatchingSize = 80;
 
 
+#define WARP_TWO
+
+#ifdef WARP_TWO
 int main(int argc, const char *argv[])
 {
 #ifdef _MSC_VER
@@ -130,13 +135,13 @@ int main(int argc, const char *argv[])
     //BlendLaplacian(input_1, result);
 
 
-	// Linearly blend
-	{
-		Mat lin_blended;
-		linear_blend(src_warped, dst_padded, lin_blended);
-		//imshow("Blended warp, padded crop", lin_blended);
-		imwrite("C:/Projects/Acads/out/blended.jpg", lin_blended);
-	}
+	//// Linearly blend
+	//{
+	//	Mat lin_blended;
+	//	linear_blend(src_warped, dst_padded, lin_blended);
+	//	//imshow("Blended warp, padded crop", lin_blended);
+	//	imwrite("C:/Projects/Acads/out/blended.jpg", lin_blended);
+	//}
 
 	// Feather blend
 	{
@@ -151,9 +156,52 @@ int main(int argc, const char *argv[])
 		multi_blend(src_warped, dst_padded, blended);
 	}
 
+
+	vector<Mat> image_set;
+	image_set.push_back(src_warped);
+	image_set.push_back(dst_padded);
+	create_panorama_simple(image_set);
+
     waitKey(0);
     return 0;
 }
+
+#else//WARP_TWO
+
+int main(int argc, const char *argv[])
+{
+#ifdef _MSC_VER
+	std::ifstream ifile("C:/Projects/Acads/COL780/Assignments/Assignment_2/input/meta.json");
+#else
+	std::ifstream ifile("Assignments/Assignment_2/input/meta.json");
+#endif
+
+	json meta_parser;
+	ifile >> meta_parser;
+
+	Mat input_1 = imread(meta_parser["data"][0], IMREAD_COLOR); 
+	Mat input_2 = imread(meta_parser["data"][1], IMREAD_COLOR);
+	Mat input_3 = imread(meta_parser["data"][2], IMREAD_COLOR);
+	Mat input_4 = imread(meta_parser["data"][3], IMREAD_COLOR);
+	Mat input_5 = imread(meta_parser["data"][4], IMREAD_COLOR);
+	Mat input_6 = imread(meta_parser["data"][5], IMREAD_COLOR);
+
+	
+	vector<Mat> image_set;
+	image_set.push_back(input_1);
+	image_set.push_back(input_2);
+	image_set.push_back(input_3);
+	image_set.push_back(input_4);
+	image_set.push_back(input_5);
+	image_set.push_back(input_6);
+	create_panorama_simple(image_set);
+
+	waitKey(0);
+	return 0;
+}
+
+
+#endif
 
 
 // Blend linearly two images
@@ -220,11 +268,6 @@ void feather_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended)
 
 void multi_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended)
 {
-
-	imwrite("C:/Projects/Acads/out/src_warped.jpg", src_warped);
-	imwrite("C:/Projects/Acads/out/dst_padded.jpg", dst_padded);
-
-
 
 	// Create source masks
 	cv::Mat grayscaleMat;
@@ -310,6 +353,24 @@ void multi_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended)
 		cv::cvtColor(blurred_mask2[i], blurred_mask2[i], cv::COLOR_GRAY2BGR);
 	}
 
+	write_images("diff_images1", diff_images1);
+
+	write_images("diff_images2", diff_images2);
+
+	for (int i = 0; i < diff_images1.size(); i++)
+	{
+		diff_images1[i].convertTo(diff_images1[i], CV_64FC3);
+		diff_images2[i].convertTo(diff_images2[i], CV_64FC3);
+		blurred_mask1[i].convertTo(blurred_mask1[i], CV_64FC3);
+		blurred_mask2[i].convertTo(blurred_mask2[i], CV_64FC3);
+		blurred_images1[i].convertTo(blurred_images1[i], CV_64FC3);
+		blurred_images2[i].convertTo(blurred_images2[i], CV_64FC3);
+	}
+
+	blurred_images1[blurred_images1.size() - 1].convertTo(blurred_images1[blurred_images1.size() - 1], CV_64FC3);
+	blurred_images2[blurred_images2.size() - 1].convertTo(blurred_images2[blurred_images1.size() - 1], CV_64FC3);
+
+
 	for (int i = 0; i < diff_images1.size(); i++)
 	{
 		multiply(diff_images1[i], blurred_mask1[i], blurred_images1[i], 1.0);
@@ -317,10 +378,49 @@ void multi_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended)
 	}
 
 
-	write_images("mult1_", blurred_images1);
+	for (int i = 0; i < blurred_images2.size(); i++)
+	{
+		add(blurred_images1[i], blurred_images2[i], blurred_images1[i]);
+	}
 
-	write_images("mult2_", blurred_images2);
 
+	for (int i = 0; i < blurred_mask1.size(); i++)
+	{
+		add(blurred_mask1[i], blurred_mask2[i], blurred_mask1[i]);
+
+	}
+
+	for (int i = 0; i < blurred_images1.size() - 1; i++)
+	{
+		add(blurred_images1[i], blurred_images1[i+1], blurred_images1[i+1]);
+	}
+
+	for (int i = 0; i < blurred_mask1.size() - 1; i++)
+	{
+		add(blurred_mask1[i], blurred_mask1[i + 1], blurred_mask1[i + 1]);
+	}
+
+	//write_images("diff_images1c", diff_images1);
+
+	//write_images("diff_images2c", diff_images2);
+	
+	Mat final_blend;
+	divide(blurred_images1[blurred_images1.size() -1 ], blurred_mask1[blurred_mask1.size() - 1], final_blend, 1.0);
+
+	imwrite("C:/Projects/Acads/out/final_blend.jpg", final_blend);
+
+}
+
+
+// The last image of the set will be the blended image
+void create_panorama_simple(vector<Mat>& image_set)
+{
+
+	for ( unsigned int i = 0; i < image_set.size() - 1; ++i ) {
+		linear_blend(image_set[i], image_set[i+1], image_set[i+1]);
+	}
+
+	imwrite("C:/Projects/Acads/out/panorama.jpg", image_set[image_set.size() - 1]);
 }
 
 
@@ -334,6 +434,7 @@ void write_images(const string& name, vector<cv::Mat> image_set)
 		imwrite(path.str(), image_set[i]);
 	}
 }
+
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)
 {
     Ptr<Feature2D> sift = SIFT::create();

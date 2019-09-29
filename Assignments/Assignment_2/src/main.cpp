@@ -144,32 +144,52 @@ int main(int argc, const char *argv[])
             cout << " } " << endl;
         }
         // Do stitching with a given source
-        // cout << "DEBUG " << endl;
+        for (auto i = image_i_j_homography.begin(); i != image_i_j_homography.end(); i++)
+        {
+            cout << endl
+                 << i->second.type() << endl;
+        }
         for (size_t i = 0; i < all_images.size(); i++)
         {
             if (!(std::find(rejection_list.begin(), rejection_list.end(), i) != rejection_list.end()))
             {
                 // InDirect homography
-
                 Mat H = Mat::eye(3, 3, CV_64F);
                 if (result_map[i].size() > 2)
                 {
-                    Mat H_next;
+                    Mat H_next = Mat::eye(3, 3, CV_64F);
                     for (size_t k = result_map[i].size() - 1; k > 0; k--)
                     {
-                        H_next = image_i_j_homography[make_pair(result_map[i][k], result_map[i][k - 1])];
+                        map<pair<int, int>, Mat>::iterator iter = image_i_j_homography.find(make_pair(result_map[i][k], result_map[i][k - 1]));
+                        if (iter != image_i_j_homography.end())
+                        {
+                            H_next = image_i_j_homography[make_pair(result_map[i][k], result_map[i][k - 1])];
+                        }
+                        else
+                        {
+                            H_next = image_i_j_homography[make_pair(result_map[i][k - 1], result_map[i][k])].inv();
+                        }
                         H = H_next * H;
-                        // cout << " k =  " << result_map[i][k] << ", k - 1 = " << result_map[i][k - 1] << endl;
                     }
                     image_i_j_homography_result[make_pair(source, result_map[i][0])] = H.inv();
                 }
                 else
                 {
-                    H = image_i_j_homography[make_pair(source, i)];
+                    map<pair<int, int>, Mat>::iterator iter = image_i_j_homography.find(make_pair(source, i));
+                    if (iter != image_i_j_homography.end())
+                    {
+                        H = image_i_j_homography[make_pair(source, i)];
+                    }
+                    else
+                    {
+                        H = image_i_j_homography[make_pair(i, source)].inv();
+                    }
                     image_i_j_homography_result[make_pair(source, i)] = H.inv();
                 }
             }
         }
+        // cout << "HEREEEE";
+
         // Do stitching
         cv::Mat black_img(cv::Size(2000, 1000), CV_64FC1, Scalar(0));
         Mat result_referece_img = black_img;
@@ -187,7 +207,8 @@ int main(int argc, const char *argv[])
             // if (c++ < 4)
             // {
             int img_2 = get<1>(i->first);
-            Mat H = image_i_j_homography_result[make_pair(source, img_2)];
+            Mat H = cv::Mat(cv::Size(3, 3), CV_64FC1);
+            H = image_i_j_homography_result[make_pair(source, img_2)];
             Mat tmp;
             warpPerspective(all_images[img_2], tmp, T * H, Size(black_img.cols, black_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
             homified_images.push_back(tmp);
@@ -203,7 +224,7 @@ int main(int argc, const char *argv[])
         // write to file -- to be deleted
         for (size_t i = 0; i < homified_images.size(); i++)
         {
-            imwrite("/Users/arghachakraborty/Projects/CV_assignments/data/homified_2/test" + to_string(i) + ".jpg", homified_images[i]);
+            imwrite("/Users/arghachakraborty/Projects/CV_assignments/data/homified_3/test" + to_string(i) + ".jpg", homified_images[i]);
             // imshow("dasda", homified_images[i]);
         }
     }
@@ -219,7 +240,7 @@ int main(int argc, const char *argv[])
     //          << " = " << i->second << endl;
     // }
 
-    // imshow("img", all_images[0]);
+    imshow("img", all_images[0]);
     waitKey(0);
 }
 

@@ -207,7 +207,7 @@ int main(int argc, const char *argv[])
 // Blend linearly two images
 void linear_blend(const Mat &src_warped, const Mat &dst_padded, Mat& blended)
 {
-	float alpha = 0.4;
+	float alpha = 0.5;
 	addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1, blended);
 }
 
@@ -370,6 +370,9 @@ void multi_blend(const Mat& src_warped, const Mat& dst_padded, Mat& blended)
 	blurred_images1[blurred_images1.size() - 1].convertTo(blurred_images1[blurred_images1.size() - 1], CV_64FC3);
 	blurred_images2[blurred_images2.size() - 1].convertTo(blurred_images2[blurred_images1.size() - 1], CV_64FC3);
 
+
+
+	// Expression starts
 
 	for (int i = 0; i < diff_images1.size(); i++)
 	{

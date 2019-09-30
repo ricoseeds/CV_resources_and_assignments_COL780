@@ -22,8 +22,8 @@ int main(int argc, const char *argv[])
     populate_images_from_dir(meta_parser["testcase"]["filename"][index], all_images);
     populate_images_from_dir_color(meta_parser["testcase"]["filename"][index], all_images_color);
     kMaxMatchingSize = meta_parser["kMaxMatchingSize"];
-    sample_down(all_images);
-    sample_down(all_images_color);
+    sample_down(all_images, meta_parser["scale_down_factor"]); // TODO : sample down to some normalised Size
+    sample_down(all_images_color, meta_parser["scale_down_factor"]);
     get_keypoints_and_descriptors_for_all_imgs(all_images, keypoint_all_img, descriptors_all_img);
     // show_keypoints(all_images[0], all_images[0], keypoint_all_img[0]);
     map<pair<int, int>, float> distances;
@@ -188,14 +188,18 @@ int main(int argc, const char *argv[])
             }
         }
         // cout << "HEREEEE";
-
+        double scale_factor = 2.0;
+        sample_down(all_images_color, 2);
+        Mat scl = Mat::eye(3, 3, CV_64F);
+        scl = scl * scale_factor;
+        scl.at<double>(2, 2) = 1;
         // Do stitching
         cv::Mat black_img(cv::Size(2000, 1000), CV_32FC3, Scalar(0));
         Mat result_referece_img = black_img;
         Mat T = Mat::eye(3, 3, CV_64FC1);
-        T.at<double>(0, 2) = result_referece_img.cols / 2;
-        T.at<double>(1, 2) = result_referece_img.rows / 2;
-        warpPerspective(all_images_color[source], result_referece_img, T, Size(result_referece_img.cols, result_referece_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
+        T.at<double>(0, 2) = result_referece_img.cols / 2 - all_images_color[source].size().height;
+        T.at<double>(1, 2) = result_referece_img.rows / 2 + all_images_color[source].size().width / 2;
+        warpPerspective(all_images_color[source], result_referece_img, scl.inv() * T * scl, Size(result_referece_img.cols, result_referece_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
         // imshow("Reference", result_referece_img);
         int c = 0;
         Mat blended_padded;
@@ -207,7 +211,7 @@ int main(int argc, const char *argv[])
             Mat H = cv::Mat(cv::Size(3, 3), CV_64FC1);
             H = image_i_j_homography_result[make_pair(source, img_2)];
             Mat tmp;
-            warpPerspective(all_images_color[img_2], tmp, T * H, Size(black_img.cols, black_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
+            warpPerspective(all_images_color[img_2], tmp, scl.inv() * T * H * scl, Size(black_img.cols, black_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
             homified_images.push_back(tmp);
         }
         Mat master_image(cv::Size(2000, 1000), CV_8UC3);
@@ -217,7 +221,6 @@ int main(int argc, const char *argv[])
         {
             for (size_t j = 0; j < black_img.cols; j++)
             {
-                Vec3b acc = Vec3b(0, 0, 0);
                 int pixel_black = 0;
                 float r = 0.0, g = 0.0, b = 0.0;
                 for (size_t k = 0; k < homified_images.size(); k++)
@@ -226,7 +229,6 @@ int main(int argc, const char *argv[])
                     if (!(pix[0] == 0 && pix[1] == 0 && pix[2] == 0))
                     {
                         pixel_black++;
-                        acc += pix;
                         r += pix[0];
                         g += pix[1];
                         b += pix[2];
@@ -238,27 +240,23 @@ int main(int argc, const char *argv[])
                 master_image.at<Vec3b>(i, j) = Vec3b(r, g, b);
             }
         }
+        // equalizeHist(master_image, master_image);
+        imshow("RESULT Without hist", master_image);
+
+        equalizeIntensity(master_image);
         imshow("RESULT", master_image);
+        imwrite("/Users/arghachakraborty/Projects/CV_assignments/data/pan1.jpg", master_image);
         // write to file -- to be deleted
-        for (size_t i = 0; i < homified_images.size(); i++)
-        {
-            imwrite("/Users/arghachakraborty/Projects/CV_assignments/data/homified_3/test" + to_string(i) + ".jpg", homified_images[i]);
-            // imshow("dasda", homified_images[i]);
-        }
+        // for (size_t i = 0; i < homified_images.size(); i++)
+        // {
+        //     imwrite("/Users/arghachakraborty/Projects/CV_assignments/data/homified_3/test" + to_string(i) + ".jpg", homified_images[i]);
+        //     // imshow("dasda", homified_images[i]);
+        // }
     }
     else
     {
         cerr << "Choose [1 | 2] in the 'matching_heuristics' field of meta.json";
     }
-
-    // // print distances
-    // for (auto i = distances.begin(); i != distances.end(); i++)
-    // {
-    //     cout << "<" << std::get<0>(i->first) + 1 << ", " << std::get<1>(i->first) + 1 << ">"
-    //          << " = " << i->second << endl;
-    // }
-
-    // imshow("img", all_images[0]);
     waitKey(0);
 }
 
@@ -304,4 +302,27 @@ void get_Dij_by_distances_of_matched_inliers(vector<Mat> &all_images, map<pair<i
             distances[make_pair(i, j)] = accumulate;
         }
     }
+}
+Mat equalizeIntensity(const Mat &inputImage)
+{
+    if (inputImage.channels() >= 3)
+    {
+        cout << "HISTO";
+        Mat ycrcb;
+
+        cvtColor(inputImage, ycrcb, COLOR_BGR2YCrCb);
+
+        vector<Mat> channels;
+        split(ycrcb, channels);
+
+        equalizeHist(channels[0], channels[0]);
+
+        Mat result;
+        merge(channels, ycrcb);
+
+        cvtColor(ycrcb, result, COLOR_YCrCb2BGR);
+
+        return result;
+    }
+    return Mat();
 }

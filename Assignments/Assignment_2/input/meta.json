@@ -12,5 +12,6 @@
     },
     "ransac_re_proj_threshold": 3,
     "matching_heuristics": 2,
-    "kMaxMatchingSize": 50
+    "kMaxMatchingSize": 50,
+    "scale_down_factor": 6
 }

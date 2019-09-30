@@ -4,6 +4,7 @@
 #include "json.hpp"
 #include <vector>
 #include <map>
+#include <set>
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/features2d.hpp> //Thanks to Alessandro
@@ -12,6 +13,7 @@
 #include <opencv2/calib3d.hpp>
 
 #include "f_utils.h"
+#include "bfs.h"
 
 using namespace cv;
 using cv::Mat;
@@ -26,11 +28,11 @@ void show_keypoints(Mat &input, Mat &output, vector<KeyPoint> &kpts);
 Point2f compute_COG(vector<KeyPoint> &kpts);
 void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vector<KeyPoint> &kpts);
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
-void sample_down(vector<Mat> &all_images);
+void sample_down(vector<Mat> &all_images, int factor);
 void get_keypoints_and_descriptors_for_all_imgs(vector<Mat> &input, vector<vector<KeyPoint>> &kpts, vector<Mat> &desc);
-
+Mat equalizeIntensity(const Mat &inputImage);
 const double kDistanceCoef = 4.0;
-const int kMaxMatchingSize = 50;
+int kMaxMatchingSize = 0;
 
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)
 {
@@ -102,10 +104,10 @@ inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches)
     }
 }
 
-void sample_down(vector<Mat> &all_images)
+void sample_down(vector<Mat> &all_images, int factor)
 {
     for (auto &img : all_images)
     {
-        resize(img, img, Size(img.size().width / 6, img.size().height / 6), cv::INTER_AREA);
+        resize(img, img, Size(img.size().width / factor, img.size().height / factor), cv::INTER_AREA);
     }
 }

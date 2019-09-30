@@ -7,3 +7,4 @@
 
 // prototypes
 void populate_images_from_dir(std::string relative_path, std::vector<cv::Mat> &all_images);
+void populate_images_from_dir_color(std::string relative_path, std::vector<cv::Mat> &all_images);

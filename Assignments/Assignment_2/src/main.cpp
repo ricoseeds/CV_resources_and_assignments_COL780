@@ -1,7 +1,12 @@
 #include "main.h"
+
 void get_Dij_by_distances_of_matched_inliers(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, float> &distances);
+
 void get_Dij_by_match_count(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, pair<int, int>> &match_count);
+
 void get_match_fraction(map<pair<int, int>, pair<int, int>> match_count, map<pair<int, int>, float> &match_fraction);
+
+
 int main(int argc, const char *argv[])
 {
     // RANSAC uses random number hence we need a seed to get consistent results
@@ -11,11 +16,16 @@ int main(int argc, const char *argv[])
 #else
     std::ifstream ifile("Assignments/Assignment_2/input/meta.json");
 #endif
+
     vector<vector<KeyPoint>> keypoint_all_img;
     vector<vector<Point2f>> keypoint_as_point2f_all_img;
     vector<Mat> descriptors_all_img;
+
     json meta_parser;
     ifile >> meta_parser;
+
+
+	// Variables
     vector<Mat> all_images;
     vector<Mat> all_images_color;
     int index = (int)meta_parser["testcase"]["run_case"];
@@ -24,18 +34,23 @@ int main(int argc, const char *argv[])
     kMaxMatchingSize = meta_parser["kMaxMatchingSize"];
     sample_down(all_images, meta_parser["scale_down_factor"]); // TODO : sample down to some normalised Size
     sample_down(all_images_color, meta_parser["scale_down_factor"]);
+
+	// Get the keypoints and descriptor for all the images
     get_keypoints_and_descriptors_for_all_imgs(all_images, keypoint_all_img, descriptors_all_img);
-    // show_keypoints(all_images[0], all_images[0], keypoint_all_img[0]);
+
+	// show_keypoints(all_images[0], all_images[0], keypoint_all_img[0]);
     map<pair<int, int>, float> distances;
     map<pair<int, int>, float> match_fraction;
     map<pair<int, int>, pair<int, int>> match_count;
-    map<pair<int, int>, vector<DMatch>>
-        image_i_j_matches;
+    map<pair<int, int>, vector<DMatch>>image_i_j_matches;
     map<pair<int, int>, vector<Point2f>> image_i_j_matches_point2f_query;
     map<pair<int, int>, vector<Point2f>> image_i_j_matches_point2f_train;
     map<pair<int, int>, Mat> image_i_j_homography;
     map<pair<int, int>, Mat> image_i_j_homography_mask;
     map<pair<int, int>, Mat> image_i_j_homography_result;
+
+
+	// match the images using the keypoint descriptors.
     for (size_t i = 0; i < all_images.size(); i++)
     {
         for (size_t j = i + 1; j < all_images.size(); j++)
@@ -45,6 +60,8 @@ int main(int argc, const char *argv[])
             image_i_j_matches[make_pair(i, j)] = matches;
         }
     }
+
+
     // compute keypoint in point2f
     for (auto i = image_i_j_matches.begin(); i != image_i_j_matches.end(); i++)
     {
@@ -146,8 +163,9 @@ int main(int argc, const char *argv[])
             }
             cout << " } " << endl;
         }
-        // Do stitching with a given source
 
+
+        // Do stitching with a given source
         for (size_t i = 0; i < all_images.size(); i++)
         {
             if (!(std::find(rejection_list.begin(), rejection_list.end(), i) != rejection_list.end()))
@@ -187,7 +205,8 @@ int main(int argc, const char *argv[])
                 }
             }
         }
-        // cout << "HEREEEE";
+
+
         double scale_factor = 2.0;
         sample_down(all_images_color, 2);
         Mat scl = Mat::eye(3, 3, CV_64F);
@@ -269,6 +288,8 @@ void get_match_fraction(map<pair<int, int>, pair<int, int>> match_count, map<pai
              << " = " << match_fraction[make_pair(std::get<0>(i->first), std::get<1>(i->first))] << endl;
     }
 }
+
+//Method to create count of matched keypoints between a set of images.
 void get_Dij_by_match_count(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, pair<int, int>> &match_count)
 {
     for (size_t i = 0; i < all_images.size(); i++)
@@ -280,7 +301,7 @@ void get_Dij_by_match_count(vector<Mat> &all_images, map<pair<int, int>, vector<
     }
 }
 
-// Really big signature, needs refactor
+//Method to accumulate the distances of the matched images.
 void get_Dij_by_distances_of_matched_inliers(vector<Mat> &all_images, map<pair<int, int>, vector<DMatch>> &image_i_j_matches, map<pair<int, int>, Mat> &image_i_j_homography_mask, map<pair<int, int>, float> &distances)
 {
     for (size_t i = 0; i < all_images.size(); i++)
@@ -303,6 +324,8 @@ void get_Dij_by_distances_of_matched_inliers(vector<Mat> &all_images, map<pair<i
         }
     }
 }
+
+
 Mat equalizeIntensity(const Mat &inputImage)
 {
     if (inputImage.channels() >= 3)

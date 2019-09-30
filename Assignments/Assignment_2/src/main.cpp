@@ -242,7 +242,7 @@ int main(int argc, const char *argv[])
         }
         // equalizeHist(master_image, master_image);
         imshow("RESULT Without hist", master_image);
-
+        medianBlur(master_image, master_image, meta_parser["median_filter_size"]);
         equalizeIntensity(master_image);
         imshow("RESULT", master_image);
         imwrite("/Users/arghachakraborty/Projects/CV_assignments/data/pan1.jpg", master_image);

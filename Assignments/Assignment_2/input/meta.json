@@ -1,6 +1,6 @@
 {
     "testcase": {
-        "run_case": 5,
+        "run_case": 0,
         "filename": [
             "data/images/1/",
             "data/images/2/",
@@ -13,5 +13,6 @@
     "ransac_re_proj_threshold": 3,
     "matching_heuristics": 2,
     "kMaxMatchingSize": 50,
-    "scale_down_factor": 6
+    "scale_down_factor": 6,
+    "median_filter_size": 3
 }

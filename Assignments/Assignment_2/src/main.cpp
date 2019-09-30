@@ -17,10 +17,13 @@ int main(int argc, const char *argv[])
     json meta_parser;
     ifile >> meta_parser;
     vector<Mat> all_images;
+    vector<Mat> all_images_color;
     int index = (int)meta_parser["testcase"]["run_case"];
     populate_images_from_dir(meta_parser["testcase"]["filename"][index], all_images);
+    populate_images_from_dir_color(meta_parser["testcase"]["filename"][index], all_images_color);
     kMaxMatchingSize = meta_parser["kMaxMatchingSize"];
     sample_down(all_images);
+    sample_down(all_images_color);
     get_keypoints_and_descriptors_for_all_imgs(all_images, keypoint_all_img, descriptors_all_img);
     // show_keypoints(all_images[0], all_images[0], keypoint_all_img[0]);
     map<pair<int, int>, float> distances;
@@ -144,11 +147,7 @@ int main(int argc, const char *argv[])
             cout << " } " << endl;
         }
         // Do stitching with a given source
-        for (auto i = image_i_j_homography.begin(); i != image_i_j_homography.end(); i++)
-        {
-            cout << endl
-                 << i->second.type() << endl;
-        }
+
         for (size_t i = 0; i < all_images.size(); i++)
         {
             if (!(std::find(rejection_list.begin(), rejection_list.end(), i) != rejection_list.end()))
@@ -191,36 +190,43 @@ int main(int argc, const char *argv[])
         // cout << "HEREEEE";
 
         // Do stitching
-        cv::Mat black_img(cv::Size(2000, 1000), CV_64FC1, Scalar(0));
+        cv::Mat black_img(cv::Size(2000, 1000), CV_32FC3, Scalar(0));
         Mat result_referece_img = black_img;
         Mat T = Mat::eye(3, 3, CV_64FC1);
         T.at<double>(0, 2) = result_referece_img.cols / 2;
         T.at<double>(1, 2) = result_referece_img.rows / 2;
-        warpPerspective(all_images[source], result_referece_img, T, Size(result_referece_img.cols, result_referece_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
-        imshow("Reference", result_referece_img);
+        warpPerspective(all_images_color[source], result_referece_img, T, Size(result_referece_img.cols, result_referece_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
+        // imshow("Reference", result_referece_img);
         int c = 0;
         Mat blended_padded;
         vector<Mat> homified_images;
         homified_images.push_back(result_referece_img);
         for (auto i = image_i_j_homography_result.begin(); i != image_i_j_homography_result.end(); i++)
         {
-            // if (c++ < 4)
-            // {
             int img_2 = get<1>(i->first);
             Mat H = cv::Mat(cv::Size(3, 3), CV_64FC1);
             H = image_i_j_homography_result[make_pair(source, img_2)];
             Mat tmp;
-            warpPerspective(all_images[img_2], tmp, T * H, Size(black_img.cols, black_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
+            warpPerspective(all_images_color[img_2], tmp, T * H, Size(black_img.cols, black_img.rows), INTER_LINEAR, BORDER_CONSTANT, 0);
             homified_images.push_back(tmp);
-            // imshow("Base LOOP", black_img);
-            //blend
-            // float alpha = 0.5;
-            // addWeighted(black_img, alpha, result_referece_img, (1.0 - alpha), 0.1,
-            //             blended_padded);
-            // imshow("Blended warp, padded crop", blended_padded);
-            // black_img = blended_padded;
-            // }
         }
+        Mat master_image(cv::Size(2000, 1000), CV_8UC3);
+        cout << "MASTERTYPE " << master_image.type();
+        cout << "HOMOIFIED " << homified_images[0].type();
+        for (size_t i = 0; i < black_img.rows; i++)
+        {
+            for (size_t j = 0; j < black_img.cols; j++)
+            {
+                Vec3b acc = Vec3b(0, 0, 0);
+                for (size_t k = 0; k < homified_images.size(); k++)
+                {
+                    Vec3b pix = homified_images[k].at<Vec3b>(i, j);
+                    acc += pix;
+                }
+                master_image.at<Vec3b>(i, j) = acc;
+            }
+        }
+        imshow("RESULT", master_image);
         // write to file -- to be deleted
         for (size_t i = 0; i < homified_images.size(); i++)
         {
@@ -240,7 +246,7 @@ int main(int argc, const char *argv[])
     //          << " = " << i->second << endl;
     // }
 
-    imshow("img", all_images[0]);
+    // imshow("img", all_images[0]);
     waitKey(0);
 }
 

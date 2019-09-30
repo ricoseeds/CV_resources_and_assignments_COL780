@@ -218,12 +218,24 @@ int main(int argc, const char *argv[])
             for (size_t j = 0; j < black_img.cols; j++)
             {
                 Vec3b acc = Vec3b(0, 0, 0);
+                int pixel_black = 0;
+                float r = 0.0, g = 0.0, b = 0.0;
                 for (size_t k = 0; k < homified_images.size(); k++)
                 {
                     Vec3b pix = homified_images[k].at<Vec3b>(i, j);
-                    acc += pix;
+                    if (!(pix[0] == 0 && pix[1] == 0 && pix[2] == 0))
+                    {
+                        pixel_black++;
+                        acc += pix;
+                        r += pix[0];
+                        g += pix[1];
+                        b += pix[2];
+                    }
                 }
-                master_image.at<Vec3b>(i, j) = acc;
+                r = r / (float)pixel_black;
+                g = g / (float)pixel_black;
+                b = b / (float)pixel_black;
+                master_image.at<Vec3b>(i, j) = Vec3b(r, g, b);
             }
         }
         imshow("RESULT", master_image);

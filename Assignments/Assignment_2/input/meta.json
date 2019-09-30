@@ -1,12 +1,13 @@
 {
     "testcase": {
-        "run_case": 4,
+        "run_case": 5,
         "filename": [
             "data/images/1/",
             "data/images/2/",
             "data/images/3/",
             "data/images/4/",
-            "data/images/5/"
+            "data/images/5/",
+            "data/images/6/"
         ]
     },
     "ransac_re_proj_threshold": 3,

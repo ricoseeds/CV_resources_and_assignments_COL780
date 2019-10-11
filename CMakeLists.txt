@@ -12,6 +12,7 @@ add_subdirectory(Assignments/HistEqualization)
 add_subdirectory(Assignments/EigenExample)
 add_subdirectory(Assignments/Assignment_1)
 add_subdirectory(Assignments/Assignment_2)
+add_subdirectory(Assignments/Assignment_3)
 
 
 

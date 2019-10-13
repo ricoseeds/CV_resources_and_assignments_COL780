@@ -27,6 +27,18 @@ Further set OPENCV_EXTRA_MODULES_PATH as C:/Projects/opencv_contrib-4.1.1/module
 7.Build OpenCV, thats all now you should be able to use viz module inside your project.
 
 
+Camera Calibration Resources
+-----------------------------
+
+Calibration pattern
+https://docs.opencv.org/master/da/d0d/tutorial_camera_calibration_pattern.html
+
+OpenCV Tutorial
+https://docs.opencv.org/4.1.1/d4/d94/tutorial_camera_calibration.html
+
+Helpful videos
+https://www.youtube.com/watch?v=HNfPbw-1e_w
+https://www.youtube.com/watch?v=v7jutAmWJVQ
 
 
 

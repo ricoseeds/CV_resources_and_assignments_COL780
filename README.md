@@ -7,6 +7,7 @@ Repository for COL780
 
 
 Enabling VIZ in OpenCV in Visual Studio
+---------------------------------------
 
 VIZ is a contrib module and requies special build steps in OpenCV
 It is enabled only when OpenCV is buuld with VTK. Which consequently requires building VTK. It is possible that prebuild binaries are available on Linux or MacOS but for windows I had to compile.
@@ -38,7 +39,10 @@ https://www.youtube.com/watch?v=HNfPbw-1e_w
 https://www.youtube.com/watch?v=v7jutAmWJVQ
 
 
+ArUco Maker Creation
+--------------------
 
+https://docs.opencv.org/trunk/d5/dae/tutorial_aruco_detection.html
 
 
 

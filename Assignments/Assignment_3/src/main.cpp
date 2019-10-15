@@ -81,8 +81,9 @@ int main()
 	return 0;
 }
 
+#endif 
 
-#elseif CAM_CAPTURE
+#ifdef CAM_CAPTURE
 
 #include <iostream>
 #include "opencv2/opencv.hpp"
@@ -127,8 +128,9 @@ int main(int argc, char** argv)
 	return 0;
 }
 
+#endif
 
-#else RUN_CALIBRATION
+#ifdef RUN_CALIBRATION
 
 #include <iostream>
 #include <sstream>

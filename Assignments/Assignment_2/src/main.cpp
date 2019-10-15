@@ -54,8 +54,8 @@ int main(int argc, const char *argv[])
     Mat input_1 = imread(meta_parser["data"][0], IMREAD_COLOR); //Load as grayscale
     Mat input_2 = imread(meta_parser["data"][1], IMREAD_COLOR); //Load as grayscale
 
-    resize(input_1, input_1, Size(input_1.size().width / 6, input_1.size().height / 6), cv::INTER_AREA);
-    resize(input_2, input_2, Size(input_2.size().width / 6, input_2.size().height / 6), cv::INTER_AREA);
+    resize(input_1, input_1, Size(input_1.size().width / 1, input_1.size().height / 1), cv::INTER_AREA);
+    resize(input_2, input_2, Size(input_2.size().width / 1, input_2.size().height / 1), cv::INTER_AREA);
 
     Mat output; // output of sift
     get_keypoints(input_1, kpts_image_1, desc_1);

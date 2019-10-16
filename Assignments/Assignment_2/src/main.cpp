@@ -21,6 +21,7 @@ using namespace std;
 using json = nlohmann::json;
 
 #define DEBUG_MATS
+#define DEBUG_MATCHES
 
 // prototypes
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc);
@@ -33,7 +34,7 @@ void feather_blend(const Mat &src_warped, const Mat &dst_padded, Mat &blended);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 
 const double kDistanceCoef = 4.0;
-const int kMaxMatchingSize = 50;
+const int kMaxMatchingSize = 100;
 
 int main(int argc, const char *argv[])
 {

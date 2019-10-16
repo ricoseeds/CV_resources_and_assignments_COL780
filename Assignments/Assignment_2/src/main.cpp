@@ -20,17 +20,14 @@ using cv::xfeatures2d::SIFT;
 using namespace std;
 using json = nlohmann::json;
 
-#define DEBUG_MATS
+// #define DEBUG_MATS
 #define DEBUG_MATCHES
 
 // prototypes
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc);
 void show_keypoints(Mat &input, Mat &output, vector<KeyPoint> &kpts);
-Point2f compute_COG(vector<KeyPoint> &kpts);
 void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vector<KeyPoint> &kpts);
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
-void linear_blend(const Mat &src_warped, const Mat &dst_padded, Mat &blended);
-void feather_blend(const Mat &src_warped, const Mat &dst_padded, Mat &blended);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 
 const double kDistanceCoef = 4.0;
@@ -49,70 +46,66 @@ int main(int argc, const char *argv[])
 
     vector<KeyPoint> kpts_image_1;
     vector<KeyPoint> kpts_image_2;
+    vector<KeyPoint> kpts_image_scene;
 
     Mat desc_1;
     Mat desc_2;
-    Mat input_1 = imread(meta_parser["data"][0], IMREAD_COLOR); //Load as grayscale
-    Mat input_2 = imread(meta_parser["data"][1], IMREAD_COLOR); //Load as grayscale
+    Mat desc_scene;
+    Mat template_1 = imread(meta_parser["data"][0], IMREAD_COLOR); //Load as grayscale
+    Mat template_2 = imread(meta_parser["data"][1], IMREAD_COLOR); //Load as grayscale
 
-    resize(input_1, input_1, Size(input_1.size().width / 1, input_1.size().height / 1), cv::INTER_AREA);
-    resize(input_2, input_2, Size(input_2.size().width / 1, input_2.size().height / 1), cv::INTER_AREA);
+    get_keypoints(template_1, kpts_image_1, desc_1);
+    get_keypoints(template_2, kpts_image_2, desc_2);
 
-    Mat output; // output of sift
-    get_keypoints(input_1, kpts_image_1, desc_1);
-    get_keypoints(input_2, kpts_image_2, desc_2);
-
-    // Add results to image and save.
-    //show_keypoints(input_1, output, kpts_image_1);
-    //imshow("matches", output);
+    Mat scene = imread(meta_parser["data"][2], IMREAD_COLOR); //Load as grayscale
+    get_keypoints(scene, kpts_image_scene, desc_scene);
 
     std::vector<Point2f> kpts_1;
     std::vector<Point2f> kpts_2;
-    std::vector<float> keypoints_distance;
+    std::vector<Point2f> kpts_scene_template_1;
+    std::vector<Point2f> kpts_scene_template_2;
 
-    // We would also create a matric of size nxn where n is number images.
-    // Then the (i,j)th element should be the normalized distanace value.
-    // This could generate a symmetrical matrix.
-    // And then in each row, we see which  element is lowest, the lowest element index will be matched image.
-    // say the lowest element is a{p,q} then pth image matches qth image best and must be stitched...
-    // Now I am stuck on what should be the order ....
-
-    // Show matched keypoints
-    vector<DMatch> matches;
-    match(desc_1, desc_2, matches);
+    vector<DMatch> matches_template_1;
+    vector<DMatch> matches_template_2;
+    match(desc_1, desc_scene, matches_template_1);
+    match(desc_2, desc_scene, matches_template_2);
 
 #ifdef DEBUG_MATCHES
     Mat img_matches;
-    drawMatches(input_1, kpts_image_1, input_2, kpts_image_2, matches, img_matches, Scalar::all(-1),
+    drawMatches(template_2, kpts_image_2, scene, kpts_image_scene, matches_template_2, img_matches, Scalar::all(-1),
                 Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
     imshow("matched_image", img_matches);
 #endif
 
-    vector<char> match_mask(matches.size(), 1);
-    keypoints_distance.reserve(matches.size());
-    if (static_cast<int>(match_mask.size()) < 3)
+    if (static_cast<int>(matches_template_1.size()) < 3 && static_cast<int>(matches_template_2.size()) < 3)
     {
         cout << "Not enough correspondence";
         return 0;
     }
-    for (int i = 0; i < static_cast<int>(matches.size()); ++i)
+    for (int i = 0; i < static_cast<int>(matches_template_1.size()); ++i)
     {
-        kpts_1.push_back(kpts_image_1[matches[i].queryIdx].pt);
-        kpts_2.push_back(kpts_image_2[matches[i].trainIdx].pt);
-        keypoints_distance.push_back(matches[i].distance);
+        kpts_1.push_back(kpts_image_1[matches_template_1[i].queryIdx].pt);
+        kpts_scene_template_1.push_back(kpts_image_scene[matches_template_1[i].trainIdx].pt);
+    }
+    for (int i = 0; i < static_cast<int>(matches_template_2.size()); ++i)
+    {
+        kpts_2.push_back(kpts_image_2[matches_template_2[i].queryIdx].pt);
+        kpts_scene_template_2.push_back(kpts_image_scene[matches_template_2[i].trainIdx].pt);
     }
 
     //Matched images will have least normalized distance.
-    float normalized_distance = std::accumulate(keypoints_distance.begin(), keypoints_distance.end(), 0) / keypoints_distance.size();
+    // float normalized_distance = std::accumulate(keypoints_distance.begin(), keypoints_distance.end(), 0) / keypoints_distance.size();
 
     // We must find a way to keep cache this distance, then attach images based on this distance.
-    std::cout << "normalized_distance: " << normalized_distance << std::endl;
+    // std::cout << "normalized_distance: " << normalized_distance << std::endl;
 
-    Mat hmask;
-    Mat H = findHomography(kpts_1, kpts_2, RANSAC, 3, hmask, 4000, 0.998);
-    cout << "HOMO mask : " << hmask;
-    cout << "Keypoint 1 size = " << kpts_1.size() << " Keypoint_2_size = " << kpts_2.size() << endl;
-    cout << "Homography matrix  : " << H << endl;
+    Mat hmask1;
+    Mat hmask2;
+    Mat H1 = findHomography(kpts_1, kpts_scene_template_1, RANSAC, 3, hmask1, 4000, 0.998);
+    Mat H2 = findHomography(kpts_2, kpts_scene_template_2, RANSAC, 3, hmask2, 4000, 0.998);
+    // cout << "HOMO mask : " << hmask;
+    // cout << "Keypoint 1 size = " << kpts_1.size() << " Keypoint_2_size = " << kpts_2.size() << endl;
+    // cout << "Homography matrix  : " << H << endl;
 
     // cv::Mat result;
     // warpPerspective(input_2, result, H.inv(), cv::Size(input_1.cols + input_2.cols, input_2.rows), INTER_CUBIC);
@@ -122,11 +115,15 @@ int main(int argc, const char *argv[])
     Mat scl = Mat::eye(3, 3, CV_64F);
     scl = scl * scale_factor;
     scl.at<double>(2, 2) = 1;
-    H = scl.inv() * H * scl;
-    resize(input_1, input_1, Size(input_1.size().width / scale_factor, input_1.size().height / scale_factor), cv::INTER_AREA);
-    resize(input_2, input_2, Size(input_2.size().width / scale_factor, input_2.size().height / scale_factor), cv::INTER_AREA);
+    H2 = scl.inv() * H2 * scl;
+    resize(template_1, template_1, Size(template_1.size().width / scale_factor, template_1.size().height / scale_factor), cv::INTER_AREA);
+    resize(template_2, template_2, Size(template_2.size().width / scale_factor, template_2.size().height / scale_factor), cv::INTER_AREA);
+    resize(scene, scene, Size(scene.size().width / scale_factor, scene.size().height / scale_factor), cv::INTER_AREA);
 
-    warpPerspectivePadded(input_1, input_2, H.inv(), src_warped, dst_padded,
+    // warpPerspectivePadded(template_1, scene, H1.inv(), src_warped, dst_padded,
+    //                       WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
+
+    warpPerspectivePadded(template_2, scene, H2.inv(), src_warped, dst_padded,
                           WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
 
     Mat blended_padded;
@@ -137,81 +134,8 @@ int main(int argc, const char *argv[])
 
     //BlendLaplacian(input_1, result);
 
-    // Linearly blend
-    {
-        Mat lin_blended;
-        linear_blend(src_warped, dst_padded, lin_blended);
-        //imshow("Blended warp, padded crop", lin_blended);
-        imwrite("C:/Projects/Acads/out/blended.jpg", lin_blended);
-    }
-
-    // Feather blend
-    {
-        Mat fe_blended;
-        //feather_blend(src_warped, dst_padded, fe_blended);
-        //imshow("Blended warp, padded crop", lin_blended);
-    }
-
     waitKey(0);
     return 0;
-}
-
-// Blend linearly two images
-void linear_blend(const Mat &src_warped, const Mat &dst_padded, Mat &blended)
-{
-    float alpha = 0.4;
-    addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1, blended);
-}
-
-void feather_blend(const Mat &src_warped, const Mat &dst_padded, Mat &blended)
-{
-    cv::Mat grayscaleMat(src_warped.size(), CV_8U);
-    //Convert BGR to Gray
-    cv::cvtColor(src_warped, grayscaleMat, cv::COLOR_BGR2GRAY);
-    //Binary image
-    cv::Mat src_mask(grayscaleMat.size(), grayscaleMat.type());
-    //Apply thresholding
-    cv::threshold(grayscaleMat, src_mask, 1, 255, cv::THRESH_BINARY);
-    imwrite("C:/Projects/Acads/out/binaryMat.jpg", src_mask);
-
-    cv::Mat grayscaleMat2(dst_padded.size(), CV_8U);
-    //Convert BGR to Gray
-    cv::cvtColor(dst_padded, grayscaleMat2, cv::COLOR_BGR2GRAY);
-    //Binary image
-    cv::Mat dst_mask(grayscaleMat2.size(), grayscaleMat2.type());
-    //Apply thresholding
-    cv::threshold(grayscaleMat2, dst_mask, 1, 255, cv::THRESH_BINARY);
-    imwrite("C:/Projects/Acads/out/dst_mask.jpg", dst_mask);
-
-    Ptr<Blender> blender;
-    float blend_strength = 5;
-    vector<Point> corners(2);
-    vector<Size> sizes(2);
-
-    corners[0].x = 0;
-    corners[0].y = src_warped.rows;
-    corners[0].x = 0;
-    corners[0].y = dst_padded.rows;
-
-    sizes[0] = src_warped.size();
-    sizes[1] = dst_padded.size();
-
-    blender = Blender::createDefault(Blender::FEATHER, false);
-    FeatherBlender *fb = dynamic_cast<FeatherBlender *>(blender.get());
-
-    Size dst_sz = resultRoi(corners, sizes).size();
-    float blend_width = sqrt(static_cast<float>(dst_sz.area())) * blend_strength / 100.f;
-    fb->setSharpness(1.f / blend_width);
-
-    blender->prepare(corners, sizes);
-
-    blender->feed(src_warped, src_mask, corners[0]);
-    blender->feed(dst_padded, dst_mask, corners[1]);
-
-    Mat result, result_mask;
-    blender->blend(result, result_mask);
-
-    imwrite("C:/Projects/Acads/out/result.jpg", result);
 }
 
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)
@@ -223,19 +147,6 @@ void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)
 void show_keypoints(Mat &input, Mat &output, vector<KeyPoint> &kpts)
 {
     drawKeypoints(input, kpts, output);
-}
-
-Point2f compute_COG(vector<KeyPoint> &kpts)
-{
-    Point2f results;
-    for (auto kpt : kpts)
-    {
-        results.x += kpt.pt.x;
-        results.y += kpt.pt.y;
-    }
-    results.x /= kpts.size();
-    results.y /= kpts.size();
-    return results;
 }
 
 void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vector<KeyPoint> &kpts)

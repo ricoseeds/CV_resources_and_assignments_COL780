@@ -29,6 +29,7 @@ void show_keypoints(Mat &input, Mat &output, vector<KeyPoint> &kpts);
 void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vector<KeyPoint> &kpts);
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
+void find_pose_from_homo(Mat H, Mat &RT);
 
 const double kDistanceCoef = 4.0;
 const int kMaxMatchingSize = 100;
@@ -136,6 +137,10 @@ int main(int argc, const char *argv[])
 
     waitKey(0);
     return 0;
+}
+
+void find_pose_from_homo(Mat H, Mat &RT)
+{
 }
 
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)

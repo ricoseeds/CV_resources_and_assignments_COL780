@@ -16,6 +16,7 @@ using namespace cv;
 using namespace cv::detail;
 using cv::Mat;
 using cv::Ptr;
+using cv::Vec;
 using cv::xfeatures2d::SIFT;
 using namespace std;
 using json = nlohmann::json;
@@ -29,7 +30,7 @@ void show_keypoints(Mat &input, Mat &output, vector<KeyPoint> &kpts);
 void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vector<KeyPoint> &kpts);
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
-void find_pose_from_homo(Mat H, Mat &RT);
+void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT);
 
 const double kDistanceCoef = 4.0;
 const int kMaxMatchingSize = 100;
@@ -111,21 +112,21 @@ int main(int argc, const char *argv[])
     // cv::Mat result;
     // warpPerspective(input_2, result, H.inv(), cv::Size(input_1.cols + input_2.cols, input_2.rows), INTER_CUBIC);
     // imshow("Result_warped", result);
-    double scale_factor = 2.0; // Our tuning knob for image size for the final stitched image
+    // double scale_factor = 2.0; // Our tuning knob for image size for the final stitched image
     Mat src_warped, dst_padded;
-    Mat scl = Mat::eye(3, 3, CV_64F);
-    scl = scl * scale_factor;
-    scl.at<double>(2, 2) = 1;
-    H2 = scl.inv() * H2 * scl;
-    resize(template_1, template_1, Size(template_1.size().width / scale_factor, template_1.size().height / scale_factor), cv::INTER_AREA);
-    resize(template_2, template_2, Size(template_2.size().width / scale_factor, template_2.size().height / scale_factor), cv::INTER_AREA);
-    resize(scene, scene, Size(scene.size().width / scale_factor, scene.size().height / scale_factor), cv::INTER_AREA);
+    // Mat scl = Mat::eye(3, 3, CV_64F);
+    // scl = scl * scale_factor;
+    // scl.at<double>(2, 2) = 1;
+    // H1 = scl.inv() * H1 * scl;
+    // resize(template_1, template_1, Size(template_1.size().width / scale_factor, template_1.size().height / scale_factor), cv::INTER_AREA);
+    // resize(template_2, template_2, Size(template_2.size().width / scale_factor, template_2.size().height / scale_factor), cv::INTER_AREA);
+    // resize(scene, scene, Size(scene.size().width / scale_factor, scene.size().height / scale_factor), cv::INTER_AREA);
 
-    // warpPerspectivePadded(template_1, scene, H1.inv(), src_warped, dst_padded,
-    //                       WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
-
-    warpPerspectivePadded(template_2, scene, H2.inv(), src_warped, dst_padded,
+    warpPerspectivePadded(template_1, scene, H1.inv(), src_warped, dst_padded,
                           WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
+
+    // warpPerspectivePadded(template_2, scene, H2.inv(), src_warped, dst_padded,
+    //                       WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
 
     Mat blended_padded;
     float alpha = 0.4;
@@ -135,12 +136,83 @@ int main(int argc, const char *argv[])
 
     //BlendLaplacian(input_1, result);
 
+    Mat Cam_Intrinsic = Mat::eye(3, 3, CV_64F);
+    Mat RT = Mat::zeros(3, 4, CV_64F);
+    Cam_Intrinsic.at<double>(0, 0) = 1097.4228244618459;
+    Cam_Intrinsic.at<double>(0, 1) = 0.0;
+    Cam_Intrinsic.at<double>(0, 2) = 540.0;
+    Cam_Intrinsic.at<double>(1, 0) = 0.0;
+    Cam_Intrinsic.at<double>(1, 1) = 1097.4228244618459;
+    Cam_Intrinsic.at<double>(1, 2) = 360;
+
+    find_pose_from_homo(H1, Cam_Intrinsic, RT);
+
     waitKey(0);
     return 0;
 }
 
-void find_pose_from_homo(Mat H, Mat &RT)
+void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
 {
+    // RT = Mat::zeros(4, 3, CV_64F);
+
+    Mat Partial_RT = CAM_Intrinsic.inv() * H;
+
+    Vec3d g1, g2, g3, t;
+    g1[0] = Partial_RT.at<double>(0, 0);
+    g1[1] = Partial_RT.at<double>(1, 0);
+    g1[2] = Partial_RT.at<double>(2, 0);
+    g2[0] = Partial_RT.at<double>(0, 1);
+    g2[1] = Partial_RT.at<double>(1, 1);
+    g2[2] = Partial_RT.at<double>(2, 1);
+
+    t[0] = Partial_RT.at<double>(0, 2);
+    t[1] = Partial_RT.at<double>(1, 2);
+    t[2] = Partial_RT.at<double>(2, 2);
+
+    g3 = g1.cross(g2);
+    cout << "G1 = " << g1 << endl;
+    cout << "G2 = " << g2 << endl;
+    cout << "G3 = " << g3 << endl;
+    cout << "g1dotg3 = " << g1.dot(g3) << endl;
+    cout << "g2dotg3 = " << g2.dot(g3) << endl;
+
+    Vec3d r1, r2, t_norm;
+
+    double length_g1g2 = sqrt(norm(g1) * norm(g2));
+
+    r1 = g1 / length_g1g2;
+    r2 = g2 / length_g1g2;
+    t_norm = t / length_g1g2;
+
+    Vec3d c, p, d;
+    c = r1 + r2;
+    p = r1.cross(r2);
+    d = c.cross(p);
+
+    Vec3d r1dashed = ((c / norm(c)) + (d / norm(d))) * 0.7072135785007072073;
+    Vec3d r2dashed = ((c / norm(c)) - (d / norm(d))) * 0.7072135785007072073;
+    Vec3d r3dashed = r1dashed.cross(r2dashed);
+
+    cout << "r1' = " << r1dashed << endl;
+    cout << "r2' = " << r2dashed << endl;
+    cout << "r3' = " << r3dashed << endl;
+    cout << "g1dotg3 = " << r1dashed.dot(r3dashed) << endl;
+    cout << "g2dotg3 = " << r2dashed.dot(r3dashed) << endl;
+    RT.at<double>(0, 0) = r1dashed[0];
+    RT.at<double>(0, 1) = r2dashed[0];
+    RT.at<double>(0, 2) = r3dashed[0];
+    RT.at<double>(0, 3) = t_norm[0];
+    RT.at<double>(1, 0) = r1dashed[1];
+    RT.at<double>(1, 1) = r2dashed[1];
+    RT.at<double>(1, 2) = r3dashed[1];
+    RT.at<double>(1, 3) = t_norm[1];
+    RT.at<double>(2, 0) = r1dashed[2];
+    RT.at<double>(2, 1) = r2dashed[2];
+    RT.at<double>(2, 2) = r3dashed[2];
+    RT.at<double>(2, 3) = t_norm[2];
+    cout << "RT " << RT << endl;
+    cout << "tnorm " << t_norm;
+    cout << "t " << t;
 }
 
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)

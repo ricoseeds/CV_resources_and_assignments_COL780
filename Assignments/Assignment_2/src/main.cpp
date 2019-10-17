@@ -144,6 +144,7 @@ int main(int argc, const char *argv[])
     Cam_Intrinsic.at<double>(1, 0) = 0.0;
     Cam_Intrinsic.at<double>(1, 1) = 1097.4228244618459;
     Cam_Intrinsic.at<double>(1, 2) = 360;
+    cout << "CAM INTRINSIC " << Cam_Intrinsic << endl;
 
     find_pose_from_homo(H1, Cam_Intrinsic, RT);
 
@@ -153,10 +154,10 @@ int main(int argc, const char *argv[])
 
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
 {
-    // RT = Mat::zeros(4, 3, CV_64F);
+    Mat Partial_RT = Mat::zeros(3, 3, CV_64F);
 
-    Mat Partial_RT = CAM_Intrinsic.inv() * H;
-
+    Partial_RT = CAM_Intrinsic.inv() * H;
+    cout << "HOMOHOMO " << H << endl;
     Vec3d g1, g2, g3, t;
     g1[0] = Partial_RT.at<double>(0, 0);
     g1[1] = Partial_RT.at<double>(1, 0);

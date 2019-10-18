@@ -32,6 +32,8 @@ void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vec
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT);
+void render_mesh(Mesh &mesh, Mat &img);
+void projective_T(Mesh &mesh, Mat projection);
 
 const double kDistanceCoef = 4.0;
 const int kMaxMatchingSize = 100;
@@ -149,30 +151,58 @@ int main(int argc, const char *argv[])
 
     find_pose_from_homo(H1, Cam_Intrinsic, RT);
     Mat projection = Cam_Intrinsic * RT;
-    // Vec4d point_1(0.0, 0.0, 0.0, 1.0);
-    Vec4d point_1(0.0, 0.0, 100.0, 1.0);
-    cout << " PROJECTION MAT  " << projection << endl;
-    Mat result = projection * Mat(point_1);
-    result.at<double>(0, 0) /= result.at<double>(0, 2);
-    result.at<double>(0, 1) /= result.at<double>(0, 2);
-    result.at<double>(0, 2) /= result.at<double>(0, 2);
-    cout << "RESULT pixel normalised " << result;
-    cv::circle(blended_padded, Point(result.at<double>(0, 0), result.at<double>(0, 1)), 8, Scalar(0, 255, 0), 2);
-    imshow("Blended warp, padded crop", blended_padded);
+    // // Vec4d point_1(0.0, 0.0, 0.0, 1.0);
+    // Vec4d point_1(0.0, 0.0, 100.0, 1.0);
+    // cout << " PROJECTION MAT  " << projection << endl;
+    // Mat result = projection * Mat(point_1);
+    // result.at<double>(0, 0) /= result.at<double>(0, 2);
+    // result.at<double>(0, 1) /= result.at<double>(0, 2);
+    // result.at<double>(0, 2) /= result.at<double>(0, 2);
+    // cout << "RESULT pixel normalised " << result;
+    // cv::circle(blended_padded, Point(result.at<double>(0, 0), result.at<double>(0, 1)), 8, Scalar(0, 255, 0), 2);
+    // Mesh operations
     Mesh mesh;
-    mesh.loadOBJ("/Users/arghachakraborty/Projects/CV_assignments/data/models/cube.obj");
-    cout << "faces" << endl;
-    for (auto face : mesh.vertices)
-    {
-        cout << face << endl;
-    }
+    mesh.loadOBJ(meta_parser["mesh"]);
+    projective_T(mesh, projection);
+    render_mesh(mesh, blended_padded);
+    // render_mesh(projection, mesh, blended_padded);
+    imshow("Blended warp, padded crop", blended_padded);
+    // cout << "vertices" << endl;
+    // for (auto face : mesh.vertices)
+    // {
+    //     cout << face << endl;
+    // }
 
     waitKey(0);
     return 0;
 }
-
-void render_mesh(Mat projection)
+void projective_T(Mesh &mesh, Mat projection)
 {
+    for (auto &vertex : mesh.vertices)
+    {
+        vertex = vertex * 100.0;
+        Vec4d point_(vertex[0], vertex[1], vertex[2], 1.0);
+        Mat result = projection * Mat(point_);
+        result.at<double>(0, 0) /= result.at<double>(0, 2);
+        result.at<double>(0, 1) /= result.at<double>(0, 2);
+        result.at<double>(0, 2) /= result.at<double>(0, 2);
+        vertex[0] = result.at<double>(0, 0);
+        vertex[1] = result.at<double>(0, 1);
+        vertex[2] = result.at<double>(0, 2);
+    }
+}
+void render_mesh(Mesh &mesh, Mat &img)
+{
+    for (auto face : mesh.faces)
+    {
+        // cout << " [ " << mesh.vertices[face[0]] << ", " << mesh.vertices[face[1]] << ", " << mesh.vertices[face[2]] << " ]" << endl;
+        Vec3d v1 = mesh.vertices[face[0] - 1];
+        Vec3d v2 = mesh.vertices[face[1] - 1];
+        Vec3d v3 = mesh.vertices[face[2] - 1];
+        cv::line(img, Point(v1[0], v1[1]), Point(v2[0], v2[1]), Scalar(0, 255, 0), 1, LINE_AA);
+        cv::line(img, Point(v2[0], v2[1]), Point(v3[0], v3[1]), Scalar(0, 255, 0), 1, LINE_AA);
+        cv::line(img, Point(v3[0], v3[1]), Point(v1[0], v1[1]), Scalar(0, 255, 0), 1, LINE_AA);
+    }
 }
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
 {

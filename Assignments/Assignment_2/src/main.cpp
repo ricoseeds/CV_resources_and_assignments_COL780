@@ -132,7 +132,7 @@ int main(int argc, const char *argv[])
     float alpha = 0.4;
     addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1,
                 blended_padded);
-    imshow("Blended warp, padded crop", blended_padded);
+    // imshow("Blended warp, padded crop", blended_padded);
 
     //BlendLaplacian(input_1, result);
 
@@ -147,11 +147,25 @@ int main(int argc, const char *argv[])
     cout << "CAM INTRINSIC " << Cam_Intrinsic << endl;
 
     find_pose_from_homo(H1, Cam_Intrinsic, RT);
+    Mat projection = Cam_Intrinsic * RT;
+    // Vec4d point_1(0.0, 0.0, 0.0, 1.0);
+    Vec4d point_1(0.0, 0.0, 100.0, 1.0);
+    cout << " PROJECTION MAT  " << projection << endl;
+    Mat result = projection * Mat(point_1);
+    result.at<double>(0, 0) /= result.at<double>(0, 2);
+    result.at<double>(0, 1) /= result.at<double>(0, 2);
+    result.at<double>(0, 2) /= result.at<double>(0, 2);
+    cout << "RESULT pixel normalised " << result;
+    cv::circle(blended_padded, Point(result.at<double>(0, 0), result.at<double>(0, 1)), 8, Scalar(0, 255, 0), 2);
+    imshow("Blended warp, padded crop", blended_padded);
 
     waitKey(0);
     return 0;
 }
 
+void render_mesh(Mat projection)
+{
+}
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
 {
     Mat Partial_RT = Mat::zeros(3, 3, CV_64F);
@@ -175,6 +189,7 @@ void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
     cout << "G2 = " << g2 << endl;
     cout << "G3 = " << g3 << endl;
     cout << "g1dotg3 = " << g1.dot(g3) << endl;
+    cout << "g1dotg2 = " << g1.dot(g2) << endl;
     cout << "g2dotg3 = " << g2.dot(g3) << endl;
 
     Vec3d r1, r2, t_norm;
@@ -197,8 +212,9 @@ void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
     cout << "r1' = " << r1dashed << endl;
     cout << "r2' = " << r2dashed << endl;
     cout << "r3' = " << r3dashed << endl;
-    cout << "g1dotg3 = " << r1dashed.dot(r3dashed) << endl;
-    cout << "g2dotg3 = " << r2dashed.dot(r3dashed) << endl;
+    cout << "R1dotR3 = " << r1dashed.dot(r3dashed) << endl;
+    cout << "R1dotR2 = " << r1dashed.dot(r2dashed) << endl;
+    cout << "R2dotR3 = " << r2dashed.dot(r3dashed) << endl;
     RT.at<double>(0, 0) = r1dashed[0];
     RT.at<double>(0, 1) = r2dashed[0];
     RT.at<double>(0, 2) = r3dashed[0];

@@ -98,33 +98,12 @@ int main(int argc, const char *argv[])
         kpts_scene_template_2.push_back(kpts_image_scene[matches_template_2[i].trainIdx].pt);
     }
 
-    //Matched images will have least normalized distance.
-    // float normalized_distance = std::accumulate(keypoints_distance.begin(), keypoints_distance.end(), 0) / keypoints_distance.size();
-
-    // We must find a way to keep cache this distance, then attach images based on this distance.
-    // std::cout << "normalized_distance: " << normalized_distance << std::endl;
-
     Mat hmask1;
     Mat hmask2;
     Mat H1 = findHomography(kpts_1, kpts_scene_template_1, RANSAC, 3, hmask1, 4000, 0.998);
     Mat H2 = findHomography(kpts_2, kpts_scene_template_2, RANSAC, 3, hmask2, 4000, 0.998);
-    // cout << "HOMO mask : " << hmask;
-    // cout << "Keypoint 1 size = " << kpts_1.size() << " Keypoint_2_size = " << kpts_2.size() << endl;
-    // cout << "Homography matrix  : " << H << endl;
 
-    // cv::Mat result;
-    // warpPerspective(input_2, result, H.inv(), cv::Size(input_1.cols + input_2.cols, input_2.rows), INTER_CUBIC);
-    // imshow("Result_warped", result);
-    // double scale_factor = 2.0; // Our tuning knob for image size for the final stitched image
     Mat src_warped, dst_padded;
-    // Mat scl = Mat::eye(3, 3, CV_64F);
-    // scl = scl * scale_factor;
-    // scl.at<double>(2, 2) = 1;
-    // H1 = scl.inv() * H1 * scl;
-    // resize(template_1, template_1, Size(template_1.size().width / scale_factor, template_1.size().height / scale_factor), cv::INTER_AREA);
-    // resize(template_2, template_2, Size(template_2.size().width / scale_factor, template_2.size().height / scale_factor), cv::INTER_AREA);
-    // resize(scene, scene, Size(scene.size().width / scale_factor, scene.size().height / scale_factor), cv::INTER_AREA);
-
     warpPerspectivePadded(template_1, scene, H1.inv(), src_warped, dst_padded,
                           WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
 
@@ -135,9 +114,6 @@ int main(int argc, const char *argv[])
     float alpha = 0.4;
     addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1,
                 blended_padded);
-    // imshow("Blended warp, padded crop", blended_padded);
-
-    //BlendLaplacian(input_1, result);
 
     Mat Cam_Intrinsic = Mat::eye(3, 3, CV_64F);
     Mat RT = Mat::zeros(3, 4, CV_64F);
@@ -148,31 +124,14 @@ int main(int argc, const char *argv[])
     Cam_Intrinsic.at<double>(1, 1) = 1097.4228244618459;
     Cam_Intrinsic.at<double>(1, 2) = 360;
     cout << "CAM INTRINSIC " << Cam_Intrinsic << endl;
-
+    H1 = -H1;
     find_pose_from_homo(H1, Cam_Intrinsic, RT);
     Mat projection = Cam_Intrinsic * RT;
-    // // Vec4d point_1(0.0, 0.0, 0.0, 1.0);
-    // Vec4d point_1(0.0, 0.0, 100.0, 1.0);
-    // cout << " PROJECTION MAT  " << projection << endl;
-    // Mat result = projection * Mat(point_1);
-    // result.at<double>(0, 0) /= result.at<double>(0, 2);
-    // result.at<double>(0, 1) /= result.at<double>(0, 2);
-    // result.at<double>(0, 2) /= result.at<double>(0, 2);
-    // cout << "RESULT pixel normalised " << result;
-    // cv::circle(blended_padded, Point(result.at<double>(0, 0), result.at<double>(0, 1)), 8, Scalar(0, 255, 0), 2);
-    // Mesh operations
     Mesh mesh;
     mesh.loadOBJ(meta_parser["mesh"]);
     projective_T(mesh, projection);
     render_mesh(mesh, blended_padded);
-    // render_mesh(projection, mesh, blended_padded);
     imshow("Blended warp, padded crop", blended_padded);
-    // cout << "vertices" << endl;
-    // for (auto face : mesh.vertices)
-    // {
-    //     cout << face << endl;
-    // }
-
     waitKey(0);
     return 0;
 }
@@ -180,7 +139,7 @@ void projective_T(Mesh &mesh, Mat projection)
 {
     for (auto &vertex : mesh.vertices)
     {
-        vertex = vertex * 100.0;
+        vertex = vertex * 2.0;
         Vec4d point_(vertex[0], vertex[1], vertex[2], 1.0);
         Mat result = projection * Mat(point_);
         result.at<double>(0, 0) /= result.at<double>(0, 2);
@@ -195,7 +154,6 @@ void render_mesh(Mesh &mesh, Mat &img)
 {
     for (auto face : mesh.faces)
     {
-        // cout << " [ " << mesh.vertices[face[0]] << ", " << mesh.vertices[face[1]] << ", " << mesh.vertices[face[2]] << " ]" << endl;
         Vec3d v1 = mesh.vertices[face[0] - 1];
         Vec3d v2 = mesh.vertices[face[1] - 1];
         Vec3d v3 = mesh.vertices[face[2] - 1];

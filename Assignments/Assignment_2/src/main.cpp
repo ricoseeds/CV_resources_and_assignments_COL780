@@ -11,6 +11,7 @@
 #include <opencv2/calib3d.hpp>
 #include <opencv2/stitching/detail/blenders.hpp>
 #include <opencv2/stitching/detail/util.hpp>
+#include "Mesh.h"
 
 using namespace cv;
 using namespace cv::detail;
@@ -158,6 +159,13 @@ int main(int argc, const char *argv[])
     cout << "RESULT pixel normalised " << result;
     cv::circle(blended_padded, Point(result.at<double>(0, 0), result.at<double>(0, 1)), 8, Scalar(0, 255, 0), 2);
     imshow("Blended warp, padded crop", blended_padded);
+    Mesh mesh;
+    mesh.loadOBJ("/Users/arghachakraborty/Projects/CV_assignments/data/models/cube.obj");
+    cout << "faces" << endl;
+    for (auto face : mesh.vertices)
+    {
+        cout << face << endl;
+    }
 
     waitKey(0);
     return 0;

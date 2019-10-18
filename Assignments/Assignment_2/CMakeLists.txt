@@ -2,7 +2,8 @@ project(Assignment_2)
 include_directories(include)
 
 add_executable(${PROJECT_NAME} 
-  src/main.cpp)
+  src/main.cpp
+  src/Mesh.cpp)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

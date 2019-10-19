@@ -9,7 +9,7 @@
 #include <opencv2/xfeatures2d/nonfree.hpp>
 #include <opencv2/imgproc.hpp> // drawing the COG
 #include <opencv2/calib3d.hpp>
-#include <opencv2/stitching/detail/blenders.hpp>
+#include <opencv2/video.hpp>
 #include <opencv2/stitching/detail/util.hpp>
 #include "Mesh.h"
 
@@ -35,125 +35,12 @@ void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT);
 void render_mesh(Mesh &mesh, Mat &img);
 void projective_T(Mesh &mesh, Mat projection);
 void TrackMarkerInVideo();
+void RenderCircle(Mat& img, const Mat& projection);
 
 const double kDistanceCoef = 4.0;
-const int kMaxMatchingSize = 100;
+const int kMaxMatchingSize = 50;
 
-
-
-void TrackMarkerInVideo()
-{
-
-// Read config file
-#ifdef _MSC_VER
-	std::ifstream ifile("C:/Projects/Acads/COL780/Assignments/Assignment_2/input/meta.json");
-#else
-	std::ifstream ifile("Assignments/Assignment_2/input/meta.json");
-#endif
-
-	// Parse the json file
-	json meta_parser;
-	ifile >> meta_parser;
-
-	//Get the template image
-	Mat template_image = imread(meta_parser["data"][0], IMREAD_COLOR);
-
-	// Get key points for template
-	vector<KeyPoint> template_keypoints;
-	Mat template_descriptor;
-	get_keypoints(template_image, template_keypoints, template_descriptor);
-
-	//Get video file
-	const string video_file = meta_parser["data"][3];
-	VideoCapture capture(video_file);
-	if ( !capture.isOpened() ) {
-		cerr << "Unable to open video file" << endl;
-		return;
-	}
-
-	// Get the mesh to be rendered
-	Mesh mesh;
-	mesh.loadOBJ(meta_parser["mesh"]);
-
-
-	// Get the intrinsic camera matrix
-	Mat cam_intrinsic = Mat::eye(3, 3, CV_64F);
-	cam_intrinsic.at<double>(0, 0) = 1097.4228244618459;
-	cam_intrinsic.at<double>(0, 1) = 0.0;
-	cam_intrinsic.at<double>(0, 2) = 540.0;
-	cam_intrinsic.at<double>(1, 0) = 0.0;
-	cam_intrinsic.at<double>(1, 1) = 1097.4228244618459;
-	cam_intrinsic.at<double>(1, 2) = 360;
-
-	while (true)
-	{
-		// Get a frame
-		Mat current_frame;
-		capture >> current_frame;
-		if ( current_frame.empty() ) {
-			break;
-		}
-
-		imshow("Input frame", current_frame);
-
-		// Get its keypoints
-		vector<KeyPoint> current_frame_keypoints;
-		Mat current_frame_descriptor;
-		get_keypoints(current_frame, current_frame_keypoints, current_frame_descriptor);
-
-		vector<DMatch> frame_template_matches;
-		match(template_descriptor, current_frame_descriptor, frame_template_matches);
-
-		if ( static_cast<int>(frame_template_matches.size()) < 3 ) {
-			cout << "Not enough correspondence in the current frame";
-			continue;
-		}
-
-		//Get the matched keypoint coords for template and current frame
-		std::vector<Point2f> matched_points_template;
-		std::vector<Point2f> matched_points_current_frame;
-		for ( int i = 0; i < static_cast<int>(frame_template_matches.size()); ++i ) {
-			matched_points_template.push_back(template_keypoints[frame_template_matches[i].queryIdx].pt);
-			matched_points_current_frame.push_back(current_frame_keypoints[frame_template_matches[i].trainIdx].pt);
-		}
-
-		Mat hmask;
-		Mat homography = findHomography(matched_points_template, matched_points_current_frame, RANSAC, 3, hmask, 4000, 0.998); //TODO: Check if 4000 iterations make sense
-
-#ifdef DEBUG_MAT
-		cout << "CAM INTRINSIC " << cam_intrinsic << endl;
-#endif 
-
-		//Find the pose from homography matrix
-		Mat RT = Mat::zeros(3, 4, CV_64F);
-		homography = -homography;
-		find_pose_from_homo(homography, cam_intrinsic, RT);
-
-		//Projection matrix
-		Mat projection = cam_intrinsic * RT;
-
-		//Transform mesh to the image space and Render mesh and the current frame
-		projective_T(mesh, projection);
-		render_mesh(mesh, current_frame);
-
-		imshow("Tracking Demo", current_frame);
-
-	}
-
-}
-
-
-void RenderCircle(Mat& img, const Mat& projection)
-{
-	Vec4d point_1(0.0, 0.0, 100.0, 1.0);
-	Mat result = projection * Mat(point_1);
-	result.at<double>(0, 0) /= result.at<double>(0, 2);
-	result.at<double>(0, 1) /= result.at<double>(0, 2);
-	result.at<double>(0, 2) /= result.at<double>(0, 2);
-
-	cv::circle(img, Point(result.at<double>(0, 0), result.at<double>(0, 1)), 8, Scalar(0, 255, 0), 2);
-}
-
+#define DEBUG_MAT
 
 int main(int argc, const char *argv[])
 {
@@ -258,8 +145,133 @@ int main(int argc, const char *argv[])
     waitKey(0);
     return 0;
 }
+
+
+
+void TrackMarkerInVideo()
+{
+
+	// Read config file
+#ifdef _MSC_VER
+	std::ifstream ifile("C:/Projects/Acads/COL780/Assignments/Assignment_2/input/meta.json");
+#else
+	std::ifstream ifile("Assignments/Assignment_2/input/meta.json");
+#endif
+
+	// Parse the json file
+	json meta_parser;
+	ifile >> meta_parser;
+
+	//Get the template image
+	Mat template_image = imread(meta_parser["data"][0], IMREAD_COLOR);
+	imshow("Template ", template_image);
+	// Get key points for template
+	vector<KeyPoint> template_keypoints;
+	Mat template_descriptor;
+	get_keypoints(template_image, template_keypoints, template_descriptor);
+
+	//Get video file
+	const string video_file = meta_parser["data"][3];
+	VideoCapture capture(video_file);
+	if (!capture.isOpened()) {
+		cerr << "Unable to open video file" << endl;
+		return;
+	}
+
+
+	// Get the intrinsic camera matrix
+	Mat cam_intrinsic = Mat::eye(3, 3, CV_64F);
+	cam_intrinsic.at<double>(0, 0) = 1097.4228244618459;
+	cam_intrinsic.at<double>(0, 1) = 0.0;
+	cam_intrinsic.at<double>(0, 2) = 540.0;
+	cam_intrinsic.at<double>(1, 0) = 0.0;
+	cam_intrinsic.at<double>(1, 1) = 1097.4228244618459;
+	cam_intrinsic.at<double>(1, 2) = 360;
+
+
+#ifdef DEBUG_MAT
+	cout << "CAM INTRINSIC " << cam_intrinsic << endl;
+#endif 
+
+	while (true)
+	{
+		// Get a frame
+		Mat current_frame;
+		capture >> current_frame;
+		if ( current_frame.empty() ) {
+			break;
+		}
+
+		imshow("Input frame", current_frame);
+
+		// Get its keypoints
+		vector<KeyPoint> current_frame_keypoints;
+		Mat current_frame_descriptor;
+		get_keypoints(current_frame, current_frame_keypoints, current_frame_descriptor);
+
+		vector<DMatch> frame_template_matches;
+		match(template_descriptor, current_frame_descriptor, frame_template_matches);
+
+		if ( static_cast<int>(frame_template_matches.size()) < 3 ) {
+			cout << "Not enough correspondence in the current frame";
+			continue;
+		}
+
+		//Get the matched keypoint coords for template and current frame
+		std::vector<Point2f> matched_points_template;
+		std::vector<Point2f> matched_points_current_frame;
+		for (int i = 0; i < static_cast<int>(frame_template_matches.size()); ++i) {
+			matched_points_template.push_back(template_keypoints[frame_template_matches[i].queryIdx].pt);
+			matched_points_current_frame.push_back(current_frame_keypoints[frame_template_matches[i].trainIdx].pt);
+		}
+
+		Mat hmask;
+		Mat homography = findHomography(matched_points_template, matched_points_current_frame, RANSAC, 3, hmask, 2000, 0.995); //TODO: Check if 4000 iterations make sense
+
+		//Find the pose from homography matrix																													  
+		Mat RT = Mat::zeros(3, 4, CV_64F);
+		homography = -homography;
+		find_pose_from_homo(homography, cam_intrinsic, RT);
+
+		//Projection matrix
+		Mat projection = cam_intrinsic * RT;
+
+		//Transform mesh to the image space and Render mesh and the current frame
+		// Get the mesh to be rendered
+		Mesh mesh;
+		mesh.loadOBJ(meta_parser["mesh"]);
+		projective_T(mesh, projection);
+		render_mesh(mesh, current_frame);
+
+		RenderCircle(current_frame, projection);
+
+		imshow("Tracking Demo", current_frame);
+
+		int keyboard = waitKey(1); // ?
+		if (keyboard == 'q' || keyboard == 27)
+			break;
+
+	}
+
+}
+
+
+void RenderCircle(Mat& img, const Mat& projection)
+{
+	Vec4d point_1(0.0, 0.0, 100.0, 1.0);
+	Mat result = projection * Mat(point_1);
+	result.at<double>(0, 0) /= result.at<double>(0, 2);
+	result.at<double>(0, 1) /= result.at<double>(0, 2);
+	result.at<double>(0, 2) /= result.at<double>(0, 2);
+
+	cv::circle(img, Point(result.at<double>(0, 0), result.at<double>(0, 1)), 8, Scalar(0, 255, 0), 2);
+}
+
+
 void projective_T(Mesh &mesh, Mat projection)
 {
+	std::cout << "Inside: " << __FUNCTION__ << std::endl;
+
     for (auto &vertex : mesh.vertices)
     {
         vertex = vertex * 2.0;
@@ -275,6 +287,8 @@ void projective_T(Mesh &mesh, Mat projection)
 }
 void render_mesh(Mesh &mesh, Mat &img)
 {
+	std::cout << "Inside: " << __FUNCTION__ << std::endl;
+
     for (auto face : mesh.faces)
     {
         Vec3d v1 = mesh.vertices[face[0] - 1];
@@ -284,9 +298,12 @@ void render_mesh(Mesh &mesh, Mat &img)
         cv::line(img, Point(v2[0], v2[1]), Point(v3[0], v3[1]), Scalar(0, 255, 0), 1, LINE_AA);
         cv::line(img, Point(v3[0], v3[1]), Point(v1[0], v1[1]), Scalar(0, 255, 0), 1, LINE_AA);
     }
+
+	imshow("Tracking Demo", img);
 }
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
 {
+	std::cout << "Inside: " << __FUNCTION__ << std::endl;
     Mat Partial_RT = Mat::zeros(3, 3, CV_64F);
 
     Partial_RT = CAM_Intrinsic.inv() * H;

@@ -34,6 +34,7 @@ void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &sr
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT);
 void render_mesh(Mesh &mesh, Mat &img);
 void projective_T(Mesh &mesh, Mat projection);
+void get_dir_vect_towards_stop_marker(Mat H, Mat projection, Vec3d &dir);
 
 const double kDistanceCoef = 4.0;
 const int kMaxMatchingSize = 100;
@@ -130,18 +131,48 @@ int main(int argc, const char *argv[])
     Mesh mesh;
     mesh.loadOBJ(meta_parser["mesh"]);
     projective_T(mesh, projection);
-    render_mesh(mesh, blended_padded);
-    imshow("Blended warp, padded crop", blended_padded);
+    int c = 0;
+    Mat temp_img = blended_padded;
+    // get_dir_vect_towards_stop_marker(H2, projection, dir);
+    while (1)
+    {
+        render_mesh(mesh, temp_img);
+        imshow("Blended warp, padded crop", blended_padded);
+        if (c++ == 1000)
+            break;
+        temp_img = blended_padded;
+    }
     waitKey(0);
     return 0;
 }
+void get_dir_vect_towards_stop_marker(Mat H, Mat projection, Vec3d &dir)
+{
+}
 void projective_T(Mesh &mesh, Mat projection)
 {
+    Mat rot = Mat::zeros(4, 4, CV_64F);
+    rot.at<double>(0, 0) = 1.0;
+    rot.at<double>(0, 1) = 0.0;
+    rot.at<double>(0, 2) = 0.0;
+    rot.at<double>(0, 3) = 0.0;
+    rot.at<double>(1, 0) = 0.0;
+    rot.at<double>(1, 1) = 0.0;
+    rot.at<double>(1, 2) = -1.0;
+    rot.at<double>(1, 3) = 0.0;
+    rot.at<double>(2, 0) = 0.0;
+    rot.at<double>(2, 1) = 1.0;
+    rot.at<double>(2, 2) = 0.0;
+    rot.at<double>(2, 3) = 0.0;
+    rot.at<double>(3, 0) = 0.0;
+    rot.at<double>(3, 1) = 0.0;
+    rot.at<double>(3, 2) = 0.0;
+    rot.at<double>(3, 3) = 1.0;
     for (auto &vertex : mesh.vertices)
     {
         vertex = vertex * 2.0;
-        Vec4d point_(vertex[0], vertex[1], vertex[2], 1.0);
+        Vec4d point_(vertex[0] + (616 / 2), vertex[1] + (416 / 2), vertex[2], 1.0);
         Mat result = projection * Mat(point_);
+        // Mat result = projection * rot * Mat(point_);
         result.at<double>(0, 0) /= result.at<double>(0, 2);
         result.at<double>(0, 1) /= result.at<double>(0, 2);
         result.at<double>(0, 2) /= result.at<double>(0, 2);
@@ -157,9 +188,9 @@ void render_mesh(Mesh &mesh, Mat &img)
         Vec3d v1 = mesh.vertices[face[0] - 1];
         Vec3d v2 = mesh.vertices[face[1] - 1];
         Vec3d v3 = mesh.vertices[face[2] - 1];
-        cv::line(img, Point(v1[0], v1[1]), Point(v2[0], v2[1]), Scalar(0, 255, 0), 1, LINE_AA);
-        cv::line(img, Point(v2[0], v2[1]), Point(v3[0], v3[1]), Scalar(0, 255, 0), 1, LINE_AA);
-        cv::line(img, Point(v3[0], v3[1]), Point(v1[0], v1[1]), Scalar(0, 255, 0), 1, LINE_AA);
+        cv::line(img, Point(v1[0], v1[1]), Point(v2[0], v2[1]), Scalar(0, 255, 0), 1, LINE_4);
+        cv::line(img, Point(v2[0], v2[1]), Point(v3[0], v3[1]), Scalar(0, 255, 0), 1, LINE_4);
+        cv::line(img, Point(v3[0], v3[1]), Point(v1[0], v1[1]), Scalar(0, 255, 0), 1, LINE_4);
     }
 }
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)

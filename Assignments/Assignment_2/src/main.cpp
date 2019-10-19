@@ -125,7 +125,7 @@ int main(int argc, const char *argv[])
     Cam_Intrinsic.at<double>(1, 1) = 1097.4228244618459;
     Cam_Intrinsic.at<double>(1, 2) = 360;
     cout << "CAM INTRINSIC " << Cam_Intrinsic << endl;
-    H1 = -H1;
+    // H1 = -H1;
     find_pose_from_homo(H1, Cam_Intrinsic, RT);
     Mat projection = Cam_Intrinsic * RT;
     Mesh mesh;
@@ -137,8 +137,8 @@ int main(int argc, const char *argv[])
     while (1)
     {
         render_mesh(mesh, temp_img);
-        imshow("Blended warp, padded crop", blended_padded);
-        if (c++ == 1000)
+        imshow("Blended warp, padded crop", temp_img);
+        if (c++ == 10000)
             break;
         temp_img = blended_padded;
     }
@@ -169,10 +169,10 @@ void projective_T(Mesh &mesh, Mat projection)
     rot.at<double>(3, 3) = 1.0;
     for (auto &vertex : mesh.vertices)
     {
-        vertex = vertex * 2.0;
+        vertex = vertex * 1.0;
         Vec4d point_(vertex[0] + (616 / 2), vertex[1] + (416 / 2), vertex[2], 1.0);
-        Mat result = projection * Mat(point_);
-        // Mat result = projection * rot * Mat(point_);
+        // Mat result = projection * Mat(point_);
+        Mat result = projection * rot * Mat(point_);
         result.at<double>(0, 0) /= result.at<double>(0, 2);
         result.at<double>(0, 1) /= result.at<double>(0, 2);
         result.at<double>(0, 2) /= result.at<double>(0, 2);

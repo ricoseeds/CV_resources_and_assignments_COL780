@@ -34,12 +34,134 @@ void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &sr
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT);
 void render_mesh(Mesh &mesh, Mat &img);
 void projective_T(Mesh &mesh, Mat projection);
+void TrackMarkerInVideo();
 
 const double kDistanceCoef = 4.0;
 const int kMaxMatchingSize = 100;
 
+
+
+void TrackMarkerInVideo()
+{
+
+// Read config file
+#ifdef _MSC_VER
+	std::ifstream ifile("C:/Projects/Acads/COL780/Assignments/Assignment_2/input/meta.json");
+#else
+	std::ifstream ifile("Assignments/Assignment_2/input/meta.json");
+#endif
+
+	// Parse the json file
+	json meta_parser;
+	ifile >> meta_parser;
+
+	//Get the template image
+	Mat template_image = imread(meta_parser["data"][0], IMREAD_COLOR);
+
+	// Get key points for template
+	vector<KeyPoint> template_keypoints;
+	Mat template_descriptor;
+	get_keypoints(template_image, template_keypoints, template_descriptor);
+
+	//Get video file
+	const string video_file = meta_parser["data"][3];
+	VideoCapture capture(video_file);
+	if ( !capture.isOpened() ) {
+		cerr << "Unable to open video file" << endl;
+		return;
+	}
+
+	// Get the mesh to be rendered
+	Mesh mesh;
+	mesh.loadOBJ(meta_parser["mesh"]);
+
+
+	// Get the intrinsic camera matrix
+	Mat cam_intrinsic = Mat::eye(3, 3, CV_64F);
+	cam_intrinsic.at<double>(0, 0) = 1097.4228244618459;
+	cam_intrinsic.at<double>(0, 1) = 0.0;
+	cam_intrinsic.at<double>(0, 2) = 540.0;
+	cam_intrinsic.at<double>(1, 0) = 0.0;
+	cam_intrinsic.at<double>(1, 1) = 1097.4228244618459;
+	cam_intrinsic.at<double>(1, 2) = 360;
+
+	while (true)
+	{
+		// Get a frame
+		Mat current_frame;
+		capture >> current_frame;
+		if ( current_frame.empty() ) {
+			break;
+		}
+
+		imshow("Input frame", current_frame);
+
+		// Get its keypoints
+		vector<KeyPoint> current_frame_keypoints;
+		Mat current_frame_descriptor;
+		get_keypoints(current_frame, current_frame_keypoints, current_frame_descriptor);
+
+		vector<DMatch> frame_template_matches;
+		match(template_descriptor, current_frame_descriptor, frame_template_matches);
+
+		if ( static_cast<int>(frame_template_matches.size()) < 3 ) {
+			cout << "Not enough correspondence in the current frame";
+			continue;
+		}
+
+		//Get the matched keypoint coords for template and current frame
+		std::vector<Point2f> matched_points_template;
+		std::vector<Point2f> matched_points_current_frame;
+		for ( int i = 0; i < static_cast<int>(frame_template_matches.size()); ++i ) {
+			matched_points_template.push_back(template_keypoints[frame_template_matches[i].queryIdx].pt);
+			matched_points_current_frame.push_back(current_frame_keypoints[frame_template_matches[i].trainIdx].pt);
+		}
+
+		Mat hmask;
+		Mat homography = findHomography(matched_points_template, matched_points_current_frame, RANSAC, 3, hmask, 4000, 0.998); //TODO: Check if 4000 iterations make sense
+
+#ifdef DEBUG_MAT
+		cout << "CAM INTRINSIC " << cam_intrinsic << endl;
+#endif 
+
+		//Find the pose from homography matrix
+		Mat RT = Mat::zeros(3, 4, CV_64F);
+		homography = -homography;
+		find_pose_from_homo(homography, cam_intrinsic, RT);
+
+		//Projection matrix
+		Mat projection = cam_intrinsic * RT;
+
+		//Transform mesh to the image space and Render mesh and the current frame
+		projective_T(mesh, projection);
+		render_mesh(mesh, current_frame);
+
+		imshow("Tracking Demo", current_frame);
+
+	}
+
+}
+
+
+void RenderCircle(Mat& img, const Mat& projection)
+{
+	Vec4d point_1(0.0, 0.0, 100.0, 1.0);
+	Mat result = projection * Mat(point_1);
+	result.at<double>(0, 0) /= result.at<double>(0, 2);
+	result.at<double>(0, 1) /= result.at<double>(0, 2);
+	result.at<double>(0, 2) /= result.at<double>(0, 2);
+
+	cv::circle(img, Point(result.at<double>(0, 0), result.at<double>(0, 1)), 8, Scalar(0, 255, 0), 2);
+}
+
+
 int main(int argc, const char *argv[])
 {
+
+	TrackMarkerInVideo();
+
+#if 0
+
 #ifdef _MSC_VER
     std::ifstream ifile("C:/Projects/Acads/COL780/Assignments/Assignment_2/input/meta.json");
 #else
@@ -132,6 +254,7 @@ int main(int argc, const char *argv[])
     projective_T(mesh, projection);
     render_mesh(mesh, blended_padded);
     imshow("Blended warp, padded crop", blended_padded);
+#endif
     waitKey(0);
     return 0;
 }
@@ -167,7 +290,11 @@ void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
     Mat Partial_RT = Mat::zeros(3, 3, CV_64F);
 
     Partial_RT = CAM_Intrinsic.inv() * H;
+
+#ifdef DEBUG_MAT
     cout << "HOMOHOMO " << H << endl;
+#endif
+
     Vec3d g1, g2, g3, t;
     g1[0] = Partial_RT.at<double>(0, 0);
     g1[1] = Partial_RT.at<double>(1, 0);
@@ -181,12 +308,15 @@ void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
     t[2] = Partial_RT.at<double>(2, 2);
 
     g3 = g1.cross(g2);
+
+#ifdef DEBUG_MAT
     cout << "G1 = " << g1 << endl;
     cout << "G2 = " << g2 << endl;
     cout << "G3 = " << g3 << endl;
     cout << "g1dotg3 = " << g1.dot(g3) << endl;
     cout << "g1dotg2 = " << g1.dot(g2) << endl;
     cout << "g2dotg3 = " << g2.dot(g3) << endl;
+#endif 
 
     Vec3d r1, r2, t_norm;
 
@@ -205,12 +335,16 @@ void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
     Vec3d r2dashed = ((c / norm(c)) - (d / norm(d))) * 0.7072135785007072073;
     Vec3d r3dashed = r1dashed.cross(r2dashed);
 
+#ifdef DEBUG_MAT
     cout << "r1' = " << r1dashed << endl;
     cout << "r2' = " << r2dashed << endl;
     cout << "r3' = " << r3dashed << endl;
     cout << "R1dotR3 = " << r1dashed.dot(r3dashed) << endl;
     cout << "R1dotR2 = " << r1dashed.dot(r2dashed) << endl;
     cout << "R2dotR3 = " << r2dashed.dot(r3dashed) << endl;
+#endif 
+
+
     RT.at<double>(0, 0) = r1dashed[0];
     RT.at<double>(0, 1) = r2dashed[0];
     RT.at<double>(0, 2) = r3dashed[0];
@@ -223,9 +357,12 @@ void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
     RT.at<double>(2, 1) = r2dashed[2];
     RT.at<double>(2, 2) = r3dashed[2];
     RT.at<double>(2, 3) = t_norm[2];
+
+#ifdef DEBUG_MAT
     cout << "RT " << RT << endl;
     cout << "tnorm " << t_norm;
     cout << "t " << t;
+#endif
 }
 
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc)

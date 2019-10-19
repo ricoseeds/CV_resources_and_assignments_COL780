@@ -9,9 +9,15 @@
 #include <opencv2/xfeatures2d/nonfree.hpp>
 #include <opencv2/imgproc.hpp> // drawing the COG
 #include <opencv2/calib3d.hpp>
+#include <Eigen/Dense>
+#include <opencv2/core/eigen.hpp>
 #include <opencv2/stitching/detail/blenders.hpp>
 #include <opencv2/stitching/detail/util.hpp>
 #include "Mesh.h"
+
+#define PI 3.1415926535897932384626433832795
+
+#define to_rad(angle) angle *(PI / 180.0)
 
 using namespace cv;
 using namespace cv::detail;
@@ -33,7 +39,7 @@ inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT);
 void render_mesh(Mesh &mesh, Mat &img);
-void projective_T(Mesh &mesh, Mat projection);
+void projective_T(Mesh &mesh, Mat projection, Mat translation);
 void get_dir_vect_towards_stop_marker(Mat H, Mat projection, Vec3d &dir);
 
 const double kDistanceCoef = 4.0;
@@ -130,25 +136,49 @@ int main(int argc, const char *argv[])
     Mat projection = Cam_Intrinsic * RT;
     Mesh mesh;
     mesh.loadOBJ(meta_parser["mesh"]);
-    projective_T(mesh, projection);
-    int c = 0;
-    Mat temp_img = blended_padded;
     // get_dir_vect_towards_stop_marker(H2, projection, dir);
+    Mat temp_img = blended_padded;
+    Vec3d delta_t(1.0, 0.0, 0.0);
+    Vec3d acc_t(0.0, 0.0, 0.0);
     while (1)
     {
+        acc_t += delta_t;
+        Eigen::Translation3f t = Eigen::Translation3f(acc_t[0], acc_t[1], acc_t[2]);
+        Eigen::Affine3f transform(t);
+        Eigen::Matrix4f matrix = transform.matrix();
+        Mat translation = Mat::eye(4, 4, CV_64F);
+        eigen2cv(matrix, translation);
+        projective_T(mesh, projection, translation);
+        int c = 0;
         render_mesh(mesh, temp_img);
         imshow("Blended warp, padded crop", temp_img);
         if (c++ == 10000)
             break;
         temp_img = blended_padded;
+        int keyboard = waitKey(1); // ?
+        if (keyboard == 'q' || keyboard == 27)
+            break;
     }
+    // Eigen::AngleAxisd rollAngle(to_rad(0), Eigen::Vector3d::UnitZ());
+    // Eigen::AngleAxisd yawAngle(0.0, Eigen::Vector3d::UnitY());
+    // Eigen::AngleAxisd pitchAngle(0.0, Eigen::Vector3d::UnitX());
+    // Eigen::Quaternion<double> q = rollAngle * yawAngle * pitchAngle;
+    // Eigen::Matrix3d rotationMatrix = q.matrix();
+
+    // Eigen::Translation3f t = Eigen::Translation3f(1, 2, 3);
+    // Eigen::Affine3f transform(t);
+    // Eigen::Matrix4f matrix = transform.matrix();
+
+    // Mat ter;
+    // eigen2cv(matrix, ter);
+    // cout << "EIGEN MAT IN CV " << ter << endl;
     waitKey(0);
     return 0;
 }
 void get_dir_vect_towards_stop_marker(Mat H, Mat projection, Vec3d &dir)
 {
 }
-void projective_T(Mesh &mesh, Mat projection)
+void projective_T(Mesh &mesh, Mat projection, Mat translation)
 {
     Mat rot = Mat::zeros(4, 4, CV_64F);
     rot.at<double>(0, 0) = 1.0;
@@ -157,10 +187,10 @@ void projective_T(Mesh &mesh, Mat projection)
     rot.at<double>(0, 3) = 0.0;
     rot.at<double>(1, 0) = 0.0;
     rot.at<double>(1, 1) = 0.0;
-    rot.at<double>(1, 2) = -1.0;
+    rot.at<double>(1, 2) = 1.0;
     rot.at<double>(1, 3) = 0.0;
     rot.at<double>(2, 0) = 0.0;
-    rot.at<double>(2, 1) = 1.0;
+    rot.at<double>(2, 1) = -1.0;
     rot.at<double>(2, 2) = 0.0;
     rot.at<double>(2, 3) = 0.0;
     rot.at<double>(3, 0) = 0.0;
@@ -169,10 +199,11 @@ void projective_T(Mesh &mesh, Mat projection)
     rot.at<double>(3, 3) = 1.0;
     for (auto &vertex : mesh.vertices)
     {
-        vertex = vertex * 1.0;
+        vertex = vertex * 100.0;
         Vec4d point_(vertex[0] + (616 / 2), vertex[1] + (416 / 2), vertex[2], 1.0);
-        // Mat result = projection * Mat(point_);
+        // Mat result = projection * translation * Mat(point_);
         Mat result = projection * rot * Mat(point_);
+        cout << "PROJJ " << projection * translation << endl;
         result.at<double>(0, 0) /= result.at<double>(0, 2);
         result.at<double>(0, 1) /= result.at<double>(0, 2);
         result.at<double>(0, 2) /= result.at<double>(0, 2);

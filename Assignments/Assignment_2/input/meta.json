@@ -4,5 +4,5 @@
         "data/marker/stop.jpg",
         "data/marker/scene1.jpeg"
     ],
-    "mesh": "data/models/tricar.obj"
+    "mesh": "data/models/cube.obj"
 }

@@ -84,6 +84,7 @@
         "variant": "cpp",
         "bit": "cpp",
         "memory_resource": "cpp",
-        "cfenv": "cpp"
+        "cfenv": "cpp",
+        "core": "cpp"
     }
 }

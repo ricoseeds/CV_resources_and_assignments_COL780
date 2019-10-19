@@ -38,7 +38,7 @@ void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vec
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT);
-void render_mesh(Mesh &mesh, Mat &img);
+void render_mesh(Mesh &mesh, Mat img);
 void projective_T(Mesh &mesh, Mat projection, Mat translation);
 void get_dir_vect_towards_stop_marker(Mat H, Mat projection, Vec3d &dir);
 
@@ -134,14 +134,21 @@ int main(int argc, const char *argv[])
     // H1 = -H1;
     find_pose_from_homo(H1, Cam_Intrinsic, RT);
     Mat projection = Cam_Intrinsic * RT;
-    Mesh mesh;
-    mesh.loadOBJ(meta_parser["mesh"]);
+    // Mesh mesh;
+    // mesh.loadOBJ(meta_parser["mesh"]);
     // get_dir_vect_towards_stop_marker(H2, projection, dir);
-    Mat temp_img = blended_padded;
-    Vec3d delta_t(1.0, 0.0, 0.0);
+    Vec3d delta_t(-1.0, 0.0, 0.0);
     Vec3d acc_t(0.0, 0.0, 0.0);
+    Mat temp_img;
+    blended_padded.copyTo(temp_img); // = blended_padded;
+    // imshow("test", blended_padded);
     while (1)
     {
+        // temp_img = blended_padded;
+        blended_padded.copyTo(temp_img); // = blended_padded;
+
+        Mesh mesh;
+        mesh.loadOBJ(meta_parser["mesh"]);
         acc_t += delta_t;
         Eigen::Translation3f t = Eigen::Translation3f(acc_t[0], acc_t[1], acc_t[2]);
         Eigen::Affine3f transform(t);
@@ -154,7 +161,8 @@ int main(int argc, const char *argv[])
         imshow("Blended warp, padded crop", temp_img);
         if (c++ == 10000)
             break;
-        temp_img = blended_padded;
+        // temp_img = blended_padded;
+        temp_img = Mat::zeros(temp_img.rows, temp_img.cols, CV_8U);
         int keyboard = waitKey(1); // ?
         if (keyboard == 'q' || keyboard == 27)
             break;
@@ -201,9 +209,14 @@ void projective_T(Mesh &mesh, Mat projection, Mat translation)
     {
         vertex = vertex * 100.0;
         Vec4d point_(vertex[0] + (616 / 2), vertex[1] + (416 / 2), vertex[2], 1.0);
-        // Mat result = projection * translation * Mat(point_);
-        Mat result = projection * rot * Mat(point_);
-        cout << "PROJJ " << projection * translation << endl;
+        translation.convertTo(translation, CV_64F);
+        Mat result = projection * translation * Mat(point_);
+        // Mat result = projection * rot * Mat(point_);
+        // cout << "SIZECHECK" << endl;
+        // Size z = projection.size();
+        // cout << " TRANS " << z.height << " " << z.width << endl;
+        // cout << "PROJJ " << projection * translation << endl;
+
         result.at<double>(0, 0) /= result.at<double>(0, 2);
         result.at<double>(0, 1) /= result.at<double>(0, 2);
         result.at<double>(0, 2) /= result.at<double>(0, 2);
@@ -212,7 +225,7 @@ void projective_T(Mesh &mesh, Mat projection, Mat translation)
         vertex[2] = result.at<double>(0, 2);
     }
 }
-void render_mesh(Mesh &mesh, Mat &img)
+void render_mesh(Mesh &mesh, Mat img)
 {
     for (auto face : mesh.faces)
     {
@@ -223,6 +236,7 @@ void render_mesh(Mesh &mesh, Mat &img)
         cv::line(img, Point(v2[0], v2[1]), Point(v3[0], v3[1]), Scalar(0, 255, 0), 1, LINE_4);
         cv::line(img, Point(v3[0], v3[1]), Point(v1[0], v1[1]), Scalar(0, 255, 0), 1, LINE_4);
     }
+    // imshow("Run", img);
 }
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT)
 {

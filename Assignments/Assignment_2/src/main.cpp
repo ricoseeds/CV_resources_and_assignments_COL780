@@ -110,20 +110,26 @@ int main(int argc, const char *argv[])
     Mat H1 = findHomography(kpts_1, kpts_scene_template_1, RANSAC, 3, hmask1, 4000, 0.998);
     Mat H2 = findHomography(kpts_2, kpts_scene_template_2, RANSAC, 3, hmask2, 4000, 0.998);
 
-    Mat src_warped, dst_padded;
-    warpPerspectivePadded(template_1, scene, H1.inv(), src_warped, dst_padded,
+    Mat src_warped_1, src_warped_2, dst_padded;
+    warpPerspectivePadded(template_1, scene, H1.inv(), src_warped_1, dst_padded,
                           WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
 
-    // warpPerspectivePadded(template_2, scene, H2.inv(), src_warped, dst_padded,
-    //                       WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
+    warpPerspectivePadded(template_2, scene, H2.inv(), src_warped_2, dst_padded,
+                          WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
 
     Mat blended_padded;
     float alpha = 0.4;
-    addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1,
+    addWeighted(src_warped_1, alpha, dst_padded, (1.0 - alpha), 0.1,
                 blended_padded);
+    addWeighted(src_warped_2, alpha, blended_padded, (1.0 - alpha), 0.1,
+    blended_padded);
+  
+    // imshow("podh1", dst_padded_1);
+    // imshow("podh2", dst_padded_2);
 
     Mat Cam_Intrinsic = Mat::eye(3, 3, CV_64F);
     Mat RT = Mat::zeros(3, 4, CV_64F);
+    Mat RT_stop = Mat::zeros(3, 4, CV_64F);
     Cam_Intrinsic.at<double>(0, 0) = 1097.4228244618459;
     Cam_Intrinsic.at<double>(0, 1) = 0.0;
     Cam_Intrinsic.at<double>(0, 2) = 540.0;
@@ -133,20 +139,57 @@ int main(int argc, const char *argv[])
     cout << "CAM INTRINSIC " << Cam_Intrinsic << endl;
     // H1 = -H1;
     find_pose_from_homo(H1, Cam_Intrinsic, RT);
+    find_pose_from_homo(H2, Cam_Intrinsic, RT_stop);
     Mat projection = Cam_Intrinsic * RT;
-    // Mesh mesh;
-    // mesh.loadOBJ(meta_parser["mesh"]);
-    // get_dir_vect_towards_stop_marker(H2, projection, dir);
+
+    // Mat reproj_start = (RT.t() * RT).inv() * RT.t();
+    // // Mat reproj_stop = (RT_stop.t() * RT_stop).inv() * RT_stop.t();
+    // Mat reproj_start;
+    // invert(Cam_Intrinsic * RT, reproj_start, DECOMP_SVD);
+    // Mat reproj_stop;
+    // invert(Cam_Intrinsic * RT_stop, reproj_stop, DECOMP_SVD);
+
+    // Mat dest_vect = reproj_stop * Mat(Vec3d(0.0, 0.0, 1.0));
+    // Mat orig_vect = reproj_start * Mat(Vec3d(0.0, 0.0, 1.0));
+    // Vec4d dest_v(dest_vect.at<double>(0, 0) / dest_vect.at<double>(0, 3), dest_vect.at<double>(0, 1) / dest_vect.at<double>(0, 3), dest_vect.at<double>(0, 2) / dest_vect.at<double>(0, 3), 1.0);
+    // Vec4d orig_v(orig_vect.at<double>(0, 0) / orig_vect.at<double>(0, 3), orig_vect.at<double>(0, 1) / orig_vect.at<double>(0, 3), orig_vect.at<double>(0, 2) / orig_vect.at<double>(0, 3), 1.0);
+    // cout
+    //     << "STRT" << dest_vect;
+    // cout << "STOP" << orig_vect;
+    Mat p1 = Cam_Intrinsic * RT_stop * Mat(Vec4d(0.0, 0.0, 0.0, 1.0));
+    p1.convertTo(p1, CV_64F);
+    int xx = p1.at<double>(0, 0) / p1.at<double>(0, 2);
+    int yy = p1.at<double>(0, 1) / p1.at<double>(0, 2);
+    cv::circle(blended_padded, Point(xx, yy), 2, Scalar(0, 255, 0), 2);
+    // // Mat dest = RT_stop * Mat(Vec4d(0.0, 0.0, 0.0, 1.0));
+    // dest.at<double>(0, 0) /= dest.at<double>(0, 2);
+    // dest.at<double>(0, 1) /= dest.at<double>(0, 2);
+    // dest.at<double>(0, 2) /= dest.at<double>(0, 2);
+    // Vec3d dest_v(dest.at<double>(0, 0), dest.at<double>(0, 1), dest.at<double>(0, 2));
+    // cout << "DDDDDDDDDDDDDDD" << dest_v << endl;
+
+    // Mat orig = RT * Mat(Vec4d(0.0, 0.0, 0.0, 1.0));
+    // orig.at<double>(0, 0) /= orig.at<double>(0, 2);
+    // orig.at<double>(0, 1) /= orig.at<double>(0, 2);
+    // orig.at<double>(0, 2) /= orig.at<double>(0, 2);
+    // Vec3d orig_v(orig.at<double>(0, 0), orig.at<double>(0, 1), orig.at<double>(0, 2));
+    // cout << "SSSSSSSSSSSSSSSSS" << orig_v << endl;
+
+    // Vec4d dt = dest_v - orig_v;
+    // cout << "DUMMMM" << dt;
+
+    // Vec3d delta_t(dt[0], dt[1], dt[2]);
+    // cout << "DELTA" << delta_t;
+
+    // delta_t = delta_t / norm(delta_t);
     Vec3d delta_t(-1.0, 0.0, 0.0);
     Vec3d acc_t(0.0, 0.0, 0.0);
     Mat temp_img;
     blended_padded.copyTo(temp_img); // = blended_padded;
-    // imshow("test", blended_padded);
     while (1)
     {
-        // temp_img = blended_padded;
+        // cout << "DELTA_T" << delta_t << endl;
         blended_padded.copyTo(temp_img); // = blended_padded;
-
         Mesh mesh;
         mesh.loadOBJ(meta_parser["mesh"]);
         acc_t += delta_t;
@@ -207,7 +250,7 @@ void projective_T(Mesh &mesh, Mat projection, Mat translation)
     rot.at<double>(3, 3) = 1.0;
     for (auto &vertex : mesh.vertices)
     {
-        vertex = vertex * 100.0;
+        vertex = vertex * 1.0;
         Vec4d point_(vertex[0] + (616 / 2), vertex[1] + (416 / 2), vertex[2], 1.0);
         translation.convertTo(translation, CV_64F);
         Mat result = projection * translation * Mat(point_);

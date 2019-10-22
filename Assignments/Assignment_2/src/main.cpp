@@ -34,6 +34,7 @@ void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &sr
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT);
 void render_mesh(Mesh &mesh, Mat &img);
 void projective_T(Mesh &mesh, Mat projection);
+int TrackInSingleFrame();
 void TrackMarkerInVideo();
 void RenderCircle(Mat& img, const Mat& projection);
 
@@ -47,102 +48,6 @@ int main(int argc, const char *argv[])
 
 	TrackMarkerInVideo();
 
-#if 0
-
-#ifdef _MSC_VER
-    std::ifstream ifile("C:/Projects/Acads/COL780/Assignments/Assignment_2/input/meta.json");
-#else
-    std::ifstream ifile("Assignments/Assignment_2/input/meta.json");
-#endif
-
-    json meta_parser;
-    ifile >> meta_parser;
-
-    vector<KeyPoint> kpts_image_1;
-    vector<KeyPoint> kpts_image_2;
-    vector<KeyPoint> kpts_image_scene;
-
-    Mat desc_1;
-    Mat desc_2;
-    Mat desc_scene;
-    Mat template_1 = imread(meta_parser["data"][0], IMREAD_COLOR); //Load as grayscale
-    Mat template_2 = imread(meta_parser["data"][1], IMREAD_COLOR); //Load as grayscale
-
-    get_keypoints(template_1, kpts_image_1, desc_1);
-    get_keypoints(template_2, kpts_image_2, desc_2);
-
-    Mat scene = imread(meta_parser["data"][2], IMREAD_COLOR); //Load as grayscale
-    get_keypoints(scene, kpts_image_scene, desc_scene);
-
-    std::vector<Point2f> kpts_1;
-    std::vector<Point2f> kpts_2;
-    std::vector<Point2f> kpts_scene_template_1;
-    std::vector<Point2f> kpts_scene_template_2;
-
-    vector<DMatch> matches_template_1;
-    vector<DMatch> matches_template_2;
-    match(desc_1, desc_scene, matches_template_1);
-    match(desc_2, desc_scene, matches_template_2);
-
-#ifdef DEBUG_MATCHES
-    Mat img_matches;
-    drawMatches(template_2, kpts_image_2, scene, kpts_image_scene, matches_template_2, img_matches, Scalar::all(-1),
-                Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-    imshow("matched_image", img_matches);
-#endif
-
-    if (static_cast<int>(matches_template_1.size()) < 3 && static_cast<int>(matches_template_2.size()) < 3)
-    {
-        cout << "Not enough correspondence";
-        return 0;
-    }
-    for (int i = 0; i < static_cast<int>(matches_template_1.size()); ++i)
-    {
-        kpts_1.push_back(kpts_image_1[matches_template_1[i].queryIdx].pt);
-        kpts_scene_template_1.push_back(kpts_image_scene[matches_template_1[i].trainIdx].pt);
-    }
-    for (int i = 0; i < static_cast<int>(matches_template_2.size()); ++i)
-    {
-        kpts_2.push_back(kpts_image_2[matches_template_2[i].queryIdx].pt);
-        kpts_scene_template_2.push_back(kpts_image_scene[matches_template_2[i].trainIdx].pt);
-    }
-
-    Mat hmask1;
-    Mat hmask2;
-    Mat H1 = findHomography(kpts_1, kpts_scene_template_1, RANSAC, 3, hmask1, 4000, 0.998);
-    Mat H2 = findHomography(kpts_2, kpts_scene_template_2, RANSAC, 3, hmask2, 4000, 0.998);
-
-    Mat src_warped, dst_padded;
-    warpPerspectivePadded(template_1, scene, H1.inv(), src_warped, dst_padded,
-                          WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
-
-    // warpPerspectivePadded(template_2, scene, H2.inv(), src_warped, dst_padded,
-    //                       WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
-
-    Mat blended_padded;
-    float alpha = 0.4;
-    addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1,
-                blended_padded);
-
-    Mat Cam_Intrinsic = Mat::eye(3, 3, CV_64F);
-    Mat RT = Mat::zeros(3, 4, CV_64F);
-    Cam_Intrinsic.at<double>(0, 0) = 1097.4228244618459;
-    Cam_Intrinsic.at<double>(0, 1) = 0.0;
-    Cam_Intrinsic.at<double>(0, 2) = 540.0;
-    Cam_Intrinsic.at<double>(1, 0) = 0.0;
-    Cam_Intrinsic.at<double>(1, 1) = 1097.4228244618459;
-    Cam_Intrinsic.at<double>(1, 2) = 360;
-    cout << "CAM INTRINSIC " << Cam_Intrinsic << endl;
-    H1 = -H1;
-    find_pose_from_homo(H1, Cam_Intrinsic, RT);
-    Mat projection = Cam_Intrinsic * RT;
-    Mesh mesh;
-    mesh.loadOBJ(meta_parser["mesh"]);
-    projective_T(mesh, projection);
-    render_mesh(mesh, blended_padded);
-    imshow("Blended warp, padded crop", blended_padded);
-#endif
-    waitKey(0);
     return 0;
 }
 
@@ -243,7 +148,7 @@ void TrackMarkerInVideo()
 		projective_T(mesh, projection);
 		render_mesh(mesh, current_frame);
 
-		RenderCircle(current_frame, projection);
+		// RenderCircle(current_frame, projection);
 
 		imshow("Tracking Demo", current_frame);
 
@@ -255,6 +160,103 @@ void TrackMarkerInVideo()
 
 }
 
+int TrackInSingleFrame()
+{
+#ifdef _MSC_VER
+	std::ifstream ifile("C:/Projects/Acads/COL780/Assignments/Assignment_2/input/meta.json");
+#else
+	std::ifstream ifile("Assignments/Assignment_2/input/meta.json");
+#endif
+
+	json meta_parser;
+	ifile >> meta_parser;
+
+	vector<KeyPoint> kpts_image_1;
+	vector<KeyPoint> kpts_image_2;
+	vector<KeyPoint> kpts_image_scene;
+
+	Mat desc_1;
+	Mat desc_2;
+	Mat desc_scene;
+	Mat template_1 = imread(meta_parser["data"][0], IMREAD_COLOR); //Load as grayscale
+	Mat template_2 = imread(meta_parser["data"][1], IMREAD_COLOR); //Load as grayscale
+
+	get_keypoints(template_1, kpts_image_1, desc_1);
+	get_keypoints(template_2, kpts_image_2, desc_2);
+
+	Mat scene = imread(meta_parser["data"][2], IMREAD_COLOR); //Load as grayscale
+	get_keypoints(scene, kpts_image_scene, desc_scene);
+
+	std::vector<Point2f> kpts_1;
+	std::vector<Point2f> kpts_2;
+	std::vector<Point2f> kpts_scene_template_1;
+	std::vector<Point2f> kpts_scene_template_2;
+
+	vector<DMatch> matches_template_1;
+	vector<DMatch> matches_template_2;
+	match(desc_1, desc_scene, matches_template_1);
+	match(desc_2, desc_scene, matches_template_2);
+
+#ifdef DEBUG_MATCHES
+	Mat img_matches;
+	drawMatches(template_2, kpts_image_2, scene, kpts_image_scene, matches_template_2, img_matches, Scalar::all(-1),
+		Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	imshow("matched_image", img_matches);
+#endif
+
+	if (static_cast<int>(matches_template_1.size()) < 3 && static_cast<int>(matches_template_2.size()) < 3)
+	{
+		cout << "Not enough correspondence";
+		return 0;
+	}
+	for (int i = 0; i < static_cast<int>(matches_template_1.size()); ++i)
+	{
+		kpts_1.push_back(kpts_image_1[matches_template_1[i].queryIdx].pt);
+		kpts_scene_template_1.push_back(kpts_image_scene[matches_template_1[i].trainIdx].pt);
+	}
+	for (int i = 0; i < static_cast<int>(matches_template_2.size()); ++i)
+	{
+		kpts_2.push_back(kpts_image_2[matches_template_2[i].queryIdx].pt);
+		kpts_scene_template_2.push_back(kpts_image_scene[matches_template_2[i].trainIdx].pt);
+	}
+
+	Mat hmask1;
+	Mat hmask2;
+	Mat H1 = findHomography(kpts_1, kpts_scene_template_1, RANSAC, 3, hmask1, 4000, 0.998);
+	Mat H2 = findHomography(kpts_2, kpts_scene_template_2, RANSAC, 3, hmask2, 4000, 0.998);
+
+	Mat src_warped, dst_padded;
+	warpPerspectivePadded(template_1, scene, H1.inv(), src_warped, dst_padded,
+		WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
+
+	// warpPerspectivePadded(template_2, scene, H2.inv(), src_warped, dst_padded,
+	//                       WARP_INVERSE_MAP, BORDER_CONSTANT, Scalar());
+
+	Mat blended_padded;
+	float alpha = 0.4;
+	addWeighted(src_warped, alpha, dst_padded, (1.0 - alpha), 0.1,
+		blended_padded);
+
+	Mat Cam_Intrinsic = Mat::eye(3, 3, CV_64F);
+	Mat RT = Mat::zeros(3, 4, CV_64F);
+	Cam_Intrinsic.at<double>(0, 0) = 1097.4228244618459;
+	Cam_Intrinsic.at<double>(0, 1) = 0.0;
+	Cam_Intrinsic.at<double>(0, 2) = 540.0;
+	Cam_Intrinsic.at<double>(1, 0) = 0.0;
+	Cam_Intrinsic.at<double>(1, 1) = 1097.4228244618459;
+	Cam_Intrinsic.at<double>(1, 2) = 360;
+	cout << "CAM INTRINSIC " << Cam_Intrinsic << endl;
+	H1 = -H1;
+	find_pose_from_homo(H1, Cam_Intrinsic, RT);
+	Mat projection = Cam_Intrinsic * RT;
+	Mesh mesh;
+	mesh.loadOBJ(meta_parser["mesh"]);
+	projective_T(mesh, projection);
+	render_mesh(mesh, blended_padded);
+	imshow("Blended warp, padded crop", blended_padded);
+	waitKey(0);
+
+}
 
 void RenderCircle(Mat& img, const Mat& projection)
 {
@@ -274,7 +276,7 @@ void projective_T(Mesh &mesh, Mat projection)
 
     for (auto &vertex : mesh.vertices)
     {
-        vertex = vertex * 2.0;
+        //vertex = vertex * 2.0;
         Vec4d point_(vertex[0], vertex[1], vertex[2], 1.0);
         Mat result = projection * Mat(point_);
         result.at<double>(0, 0) /= result.at<double>(0, 2);

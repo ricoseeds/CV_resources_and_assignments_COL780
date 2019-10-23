@@ -4,5 +4,5 @@
         "data/marker/stop.jpg",
         "data/marker/scene2.jpeg"
     ],
-    "mesh": "data/models/tricar.obj"
+    "mesh": "data/models/tricar_transformed4Start_StopApp.obj"
 }

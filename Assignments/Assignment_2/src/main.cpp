@@ -38,8 +38,8 @@ void populate_point2f_keypoint_vector(std::vector<Point2f> &kpts_as_point2f, vec
 inline void match(Mat &desc1, Mat &desc2, vector<DMatch> &matches);
 void warpPerspectivePadded(const Mat &src, const Mat &dst, const Mat &M, Mat &src_warped, Mat &dst_padded, int flags, int borderMode, const Scalar &borderValue);
 void find_pose_from_homo(const Mat &H, const Mat &CAM_Intrinsic, Mat &RT);
-void render_mesh(Mesh &mesh, Mat img);
-void projective_T(Mesh &mesh, Mat projection, Mat translation);
+void render_mesh(Mesh &mesh, Mat img, Mat translation);
+void projective_T(Mesh &mesh, Mat projection);
 void get_dir_vect_towards_stop_marker(Mat H, Mat projection, Vec3d &dir);
 
 const double kDistanceCoef = 4.0;
@@ -86,7 +86,7 @@ int main(int argc, const char *argv[])
     Mat img_matches;
     drawMatches(template_2, kpts_image_2, scene, kpts_image_scene, matches_template_2, img_matches, Scalar::all(-1),
                 Scalar::all(-1), std::vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-    imshow("matched_image", img_matches);
+    // imshow("matched_image", img_matches);
 #endif
 
     if (static_cast<int>(matches_template_1.size()) < 3 && static_cast<int>(matches_template_2.size()) < 3)
@@ -122,8 +122,8 @@ int main(int argc, const char *argv[])
     addWeighted(src_warped_1, alpha, dst_padded, (1.0 - alpha), 0.1,
                 blended_padded);
     addWeighted(src_warped_2, alpha, blended_padded, (1.0 - alpha), 0.1,
-    blended_padded);
-  
+                blended_padded);
+
     // imshow("podh1", dst_padded_1);
     // imshow("podh2", dst_padded_2);
 
@@ -144,115 +144,63 @@ int main(int argc, const char *argv[])
 
     Mat KRT_start = Cam_Intrinsic * RT;
     Mat KRT_stop = Cam_Intrinsic * RT_stop;
-    Mat reproj_start;
-    invert(KRT_start, reproj_start, DECOMP_SVD);
-    Mat reproj_stop;
-    invert(KRT_stop, reproj_stop, DECOMP_SVD);
     Mat Mat_start = KRT_start * Mat(Vec4d(0.0, 0.0, 0.0, 1.0));
     Mat Mat_stop = KRT_stop * Mat(Vec4d(0.0, 0.0, 0.0, 1.0));
-    Mat_start /= Mat_start.at<double>(0,2);
-    KRT_stop /= Mat_stop.at<double>(0,2);
-    Mat Mat_proj_start = reproj_start * Mat_start;
-    Mat Mat_proj_stop = reproj_stop * Mat_stop;
-    Vec4d world_start = Vec4d(Mat_proj_start.at<double>(0,0),Mat_proj_start.at<double>(0,1),Mat_proj_start.at<double>(0,2),Mat_proj_start.at<double>(0,3));
-    Vec4d world_stop = Vec4d(Mat_proj_stop.at<double>(0,0),Mat_proj_stop.at<double>(0,1),Mat_proj_stop.at<double>(0,2),Mat_proj_stop.at<double>(0,3));
-    world_start[0] /= world_start[3];
-    world_start[1] /= world_start[3];
-    world_start[2] /= world_start[3];
-    world_start[3] /= world_start[3];
-    world_stop[0] /= world_stop[3];
-    world_stop[1] /= world_stop[3];
-    world_stop[2] /= world_stop[3];
-    world_stop[3] /= world_stop[3];
-    // Vec4d tr_vect = world_stop - world_start;
-    // Vec3d final_vect = Vec3d(tr_vect[0], tr_vect[1], tr_vect[2]);
-    // final_vect = final_vect / norm(tr_vect);
-    cout << "WORLD START "<<world_start << endl;
-    cout << "WORLD STOP "<<world_stop << endl;
-    // cout << "ALSDLAKSLDKALSKD" << Mat_start / Mat_start.at<double>(0,2);
-    // cout << "oiuoiuoiu" << Mat_stop / Mat_stop.at<double>(0,2) ;
-
-    // delta_t = delta_t / norm(delta_t);
-    Vec3d delta_t(-10.0, 0.0, 0.0);
-    // Vec3d delta_t = -final_vect;
-    
-    Vec3d acc_t(0.0, 0.0, 0.0);
+    Mat_start /= Mat_start.at<double>(0, 2);
+    Mat_stop /= Mat_stop.at<double>(0, 2);
+    Vec2d delta_t = Vec2d(Mat_stop.at<double>(0, 0), Mat_stop.at<double>(0, 1)) - Vec2d(Mat_start.at<double>(0, 0), Mat_start.at<double>(0, 1));
+    Vec2d trans_end = delta_t;
+    delta_t /= norm(delta_t);
+    // Vec2d acc_t(Mat_start.at<double>(0, 0), Mat_start.at<double>(0, 1));
+    Vec2d acc_t(0.0, 0.0);
     Mat temp_img;
     blended_padded.copyTo(temp_img); // = blended_padded;
+    Mesh mesh;
+    mesh.loadOBJ(meta_parser["mesh"]);
+    projective_T(mesh, projection);
+    Mat trans = Mat::eye(3, 3, CV_64F);
+    // render_mesh(mesh, temp_img, Mat::eye(3,3,CV_64F) );
+    // imshow("SEXY", temp_img);
     while (1)
     {
-        // cout << "DELTA_T" << delta_t << endl;
-        blended_padded.copyTo(temp_img); // = blended_padded;
-        Mesh mesh;
-        mesh.loadOBJ(meta_parser["mesh"]);
+
+        blended_padded.copyTo(temp_img);
         acc_t += delta_t;
-        Eigen::Translation3f t = Eigen::Translation3f(acc_t[0], acc_t[1], acc_t[2]);
-        Eigen::Affine3f transform(t);
-        Eigen::Matrix4f matrix = transform.matrix();
-        Mat translation = Mat::eye(4, 4, CV_64F);
-        eigen2cv(matrix, translation);
-        projective_T(mesh, projection, translation);
-        int c = 0;
-        render_mesh(mesh, temp_img);
-        imshow("Blended warp, padded crop", temp_img);
-        if (c++ == 10000)
-            break;
-        // temp_img = blended_padded;
+
+        Eigen::Translation2f t = Eigen::Translation2f(acc_t[0], acc_t[1]);
+        Eigen::Affine2f transform(t);
+        Eigen::Matrix3f matrix = transform.matrix();
+        eigen2cv(matrix, trans);
+        trans.convertTo(trans, CV_64F);
+        render_mesh(mesh, temp_img, trans);
+        imshow("TRANS", temp_img);
+        // imshow("TRANSEND", trans_end);
+        cout << "ACC " << acc_t << endl;
+        cout << "STOP " << trans_end << endl;
         temp_img = Mat::zeros(temp_img.rows, temp_img.cols, CV_8U);
-        int keyboard = waitKey(1); // ?
+        Vec2d eps = trans_end - acc_t;
+        if (abs(eps[0]) < 0.1 && abs(eps[1]) < 0.1)
+        {
+            cout << "FUK YOU";
+            break;
+        }
+        int keyboard = waitKey(1);
         if (keyboard == 'q' || keyboard == 27)
             break;
     }
-    // Eigen::AngleAxisd rollAngle(to_rad(0), Eigen::Vector3d::UnitZ());
-    // Eigen::AngleAxisd yawAngle(0.0, Eigen::Vector3d::UnitY());
-    // Eigen::AngleAxisd pitchAngle(0.0, Eigen::Vector3d::UnitX());
-    // Eigen::Quaternion<double> q = rollAngle * yawAngle * pitchAngle;
-    // Eigen::Matrix3d rotationMatrix = q.matrix();
-
-    // Eigen::Translation3f t = Eigen::Translation3f(1, 2, 3);
-    // Eigen::Affine3f transform(t);
-    // Eigen::Matrix4f matrix = transform.matrix();
-
-    // Mat ter;
-    // eigen2cv(matrix, ter);
-    // cout << "EIGEN MAT IN CV " << ter << endl;
     waitKey(0);
     return 0;
 }
-void get_dir_vect_towards_stop_marker(Mat H, Mat projection, Vec3d &dir)
+
+void projective_T(Mesh &mesh, Mat projection)
 {
-}
-void projective_T(Mesh &mesh, Mat projection, Mat translation)
-{
-    Mat rot = Mat::zeros(4, 4, CV_64F);
-    rot.at<double>(0, 0) = 1.0;
-    rot.at<double>(0, 1) = 0.0;
-    rot.at<double>(0, 2) = 0.0;
-    rot.at<double>(0, 3) = 0.0;
-    rot.at<double>(1, 0) = 0.0;
-    rot.at<double>(1, 1) = 0.0;
-    rot.at<double>(1, 2) = 1.0;
-    rot.at<double>(1, 3) = 0.0;
-    rot.at<double>(2, 0) = 0.0;
-    rot.at<double>(2, 1) = -1.0;
-    rot.at<double>(2, 2) = 0.0;
-    rot.at<double>(2, 3) = 0.0;
-    rot.at<double>(3, 0) = 0.0;
-    rot.at<double>(3, 1) = 0.0;
-    rot.at<double>(3, 2) = 0.0;
-    rot.at<double>(3, 3) = 1.0;
+
     for (auto &vertex : mesh.vertices)
     {
         vertex = vertex * 1.0;
-        Vec4d point_(vertex[0] + (616 / 2), vertex[1] + (416 / 2), vertex[2], 1.0);
-        translation.convertTo(translation, CV_64F);
-        Mat result = projection * translation * Mat(point_);
-        // Mat result = projection * rot * Mat(point_);
-        // cout << "SIZECHECK" << endl;
-        // Size z = projection.size();
-        // cout << " TRANS " << z.height << " " << z.width << endl;
-        // cout << "PROJJ " << projection * translation << endl;
-
+        // Vec4d point_(vertex[0] + (616 / 2), vertex[1] + (416 / 2), vertex[2], 1.0);
+        Vec4d point_(vertex[0], vertex[1], vertex[2], 1.0);
+        Mat result = projection * Mat(point_);
         result.at<double>(0, 0) /= result.at<double>(0, 2);
         result.at<double>(0, 1) /= result.at<double>(0, 2);
         result.at<double>(0, 2) /= result.at<double>(0, 2);
@@ -261,13 +209,25 @@ void projective_T(Mesh &mesh, Mat projection, Mat translation)
         vertex[2] = result.at<double>(0, 2);
     }
 }
-void render_mesh(Mesh &mesh, Mat img)
+void render_mesh(Mesh &mesh, Mat img, Mat translation)
 {
+    translation.convertTo(translation, CV_64F);
+    // cout << "transform " << translation * Mat(mesh.vertices[0]) << endl;
     for (auto face : mesh.faces)
     {
-        Vec3d v1 = mesh.vertices[face[0] - 1];
-        Vec3d v2 = mesh.vertices[face[1] - 1];
-        Vec3d v3 = mesh.vertices[face[2] - 1];
+        Mat v1_m = translation * Mat(mesh.vertices[face[0] - 1]);
+        Mat v2_m = translation * Mat(mesh.vertices[face[1] - 1]);
+        Mat v3_m = translation * Mat(mesh.vertices[face[2] - 1]);
+        Vec2d v1, v2, v3;
+        v1[0] = v1_m.at<double>(0, 0);
+        v1[1] = v1_m.at<double>(0, 1);
+        v2[0] = v2_m.at<double>(0, 0);
+        v2[1] = v2_m.at<double>(0, 1);
+        v3[0] = v3_m.at<double>(0, 0);
+        v3[1] = v3_m.at<double>(0, 1);
+        // cout << "V1 " << v1 << endl;
+        // cout << "V2 " << v2 << endl;
+        // cout << "V3 " << v3 << endl;
         cv::line(img, Point(v1[0], v1[1]), Point(v2[0], v2[1]), Scalar(0, 255, 0), 1, LINE_4);
         cv::line(img, Point(v2[0], v2[1]), Point(v3[0], v3[1]), Scalar(0, 255, 0), 1, LINE_4);
         cv::line(img, Point(v3[0], v3[1]), Point(v1[0], v1[1]), Scalar(0, 255, 0), 1, LINE_4);
@@ -510,7 +470,7 @@ void warpPerspectivePadded(
     cout << "pad_left : " << pad_left << endl;
     cout << "pad_right : " << pad_right << endl;
 
-    imshow("dst", dst);
+    // imshow("dst", dst);
     copyMakeBorder(dst, dst_padded, pad_top, pad_bot, pad_left, pad_right, borderMode, borderValue);
     //imshow("dst_padded", dst_padded);
     imwrite("C:/Projects/Acads/out/dst_padded.jpg", dst_padded);
@@ -518,7 +478,7 @@ void warpPerspectivePadded(
     // transform src into larger window
     int dst_pad_h = dst_padded.rows;
     int dst_pad_w = dst_padded.cols;
-    imshow("src", src);
+    // imshow("src", src);
     warpPerspective(src, src_warped, transf, Size(dst_pad_w, dst_pad_h),
                     flags, borderMode, borderValue);
 

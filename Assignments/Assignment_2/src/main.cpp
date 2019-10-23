@@ -141,7 +141,6 @@ int main(int argc, const char *argv[])
     find_pose_from_homo(H1, Cam_Intrinsic, RT);
     find_pose_from_homo(H2, Cam_Intrinsic, RT_stop);
     Mat projection = Cam_Intrinsic * RT;
-
     Mat KRT_start = Cam_Intrinsic * RT;
     Mat KRT_stop = Cam_Intrinsic * RT_stop;
     Mat Mat_start = KRT_start * Mat(Vec4d(0.0, 0.0, 0.0, 1.0));
@@ -159,14 +158,11 @@ int main(int argc, const char *argv[])
     mesh.loadOBJ(meta_parser["mesh"]);
     projective_T(mesh, projection);
     Mat trans = Mat::eye(3, 3, CV_64F);
-    // render_mesh(mesh, temp_img, Mat::eye(3,3,CV_64F) );
-    // imshow("SEXY", temp_img);
     while (1)
     {
 
         blended_padded.copyTo(temp_img);
         acc_t += delta_t;
-
         Eigen::Translation2f t = Eigen::Translation2f(acc_t[0], acc_t[1]);
         Eigen::Affine2f transform(t);
         Eigen::Matrix3f matrix = transform.matrix();
@@ -174,14 +170,12 @@ int main(int argc, const char *argv[])
         trans.convertTo(trans, CV_64F);
         render_mesh(mesh, temp_img, trans);
         imshow("TRANS", temp_img);
-        // imshow("TRANSEND", trans_end);
         cout << "ACC " << acc_t << endl;
         cout << "STOP " << trans_end << endl;
         temp_img = Mat::zeros(temp_img.rows, temp_img.cols, CV_8U);
         Vec2d eps = trans_end - acc_t;
         if (abs(eps[0]) < 0.1 && abs(eps[1]) < 0.1)
         {
-            cout << "FUK YOU";
             break;
         }
         int keyboard = waitKey(1);
@@ -212,7 +206,6 @@ void projective_T(Mesh &mesh, Mat projection)
 void render_mesh(Mesh &mesh, Mat img, Mat translation)
 {
     translation.convertTo(translation, CV_64F);
-    // cout << "transform " << translation * Mat(mesh.vertices[0]) << endl;
     for (auto face : mesh.faces)
     {
         Mat v1_m = translation * Mat(mesh.vertices[face[0] - 1]);
@@ -225,9 +218,6 @@ void render_mesh(Mesh &mesh, Mat img, Mat translation)
         v2[1] = v2_m.at<double>(0, 1);
         v3[0] = v3_m.at<double>(0, 0);
         v3[1] = v3_m.at<double>(0, 1);
-        // cout << "V1 " << v1 << endl;
-        // cout << "V2 " << v2 << endl;
-        // cout << "V3 " << v3 << endl;
         cv::line(img, Point(v1[0], v1[1]), Point(v2[0], v2[1]), Scalar(0, 255, 0), 1, LINE_4);
         cv::line(img, Point(v2[0], v2[1]), Point(v3[0], v3[1]), Scalar(0, 255, 0), 1, LINE_4);
         cv::line(img, Point(v3[0], v3[1]), Point(v1[0], v1[1]), Scalar(0, 255, 0), 1, LINE_4);

@@ -24,6 +24,7 @@ using json = nlohmann::json;
 
 // #define DEBUG_MATS
 #define DEBUG_MATCHES
+//#define DUMP_VIDEO
 
 // prototypes
 void get_keypoints(Mat &input, vector<KeyPoint> &kpts, Mat &desc);
@@ -98,6 +99,27 @@ void TrackMarkerInVideo()
 	cout << "CAM INTRINSIC " << cam_intrinsic << endl;
 #endif 
 
+// Enable this to dump video, dont forget to change the path
+#ifdef DUMP_VIDEO
+	const int frame_width = 1080;
+	const int frame_height = 720;
+
+	Size frame_size(frame_width, frame_height);
+	int frames_per_second = 10;
+
+	//Create and initialize the VideoWriter object 
+	VideoWriter oVideoWriter("C:/Users/Sukhraj/Desktop/MyVideo.mp4", VideoWriter::fourcc('M', 'P', '4', '2'),
+		frames_per_second, frame_size, true);
+
+	//If the VideoWriter object is not initialized successfully, exit the program
+	if (oVideoWriter.isOpened() == false)
+	{
+		cout << "Cannot save the video to a file" << endl;
+		cin.get(); //wait for any key press
+		return ;
+	}
+#endif
+
 	while (true)
 	{
 		// Get a frame
@@ -152,12 +174,18 @@ void TrackMarkerInVideo()
 
 		imshow("Tracking Demo", current_frame);
 
+#ifdef DUMP_VIDEO
+		// Capture Video
+		oVideoWriter.write(current_frame);
+#endif
+
 		int keyboard = waitKey(1); // ?
 		if (keyboard == 'q' || keyboard == 27)
 			break;
-
 	}
 
+	oVideoWriter.release();
+	
 }
 
 int TrackInSingleFrame()

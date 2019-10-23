@@ -2,7 +2,7 @@
     "data": [
         "data/marker/start.jpg",
         "data/marker/stop.jpg",
-        "data/marker/scene1.jpeg"
+        "data/marker/scene2.jpeg"
     ],
     "mesh": "data/models/tricar.obj"
 }

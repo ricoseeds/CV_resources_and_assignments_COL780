@@ -184,7 +184,10 @@ void TrackMarkerInVideo()
 			break;
 	}
 
+
+#ifdef DUMP_VIDEO
 	oVideoWriter.release();
+#endif
 	
 }
 

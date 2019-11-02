@@ -1,6 +1,8 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <sys/stat.h> 
+#include <sys/types.h> 
 #include "json.hpp"
 #include <vector>
 #include <opencv2/core.hpp>
@@ -31,16 +33,31 @@ int main(int argc, const char *argv[])
 #endif
     json meta_parser;
     ifile >> meta_parser;
-    const string video_file = meta_parser["data"][3];
+    const string video_file = meta_parser["data"][0];
     VideoCapture capture(video_file);
+    Ptr<BackgroundSubtractor> pBackSub;
+    pBackSub = createBackgroundSubtractorMOG2();
+    int fps = capture.get(cv::CAP_PROP_FPS);
+    int count = 1;
+    string name = meta_parser["dir_name"];
+    string iclassname = name + "_";
     while (true)
     {
         Mat current_frame;
         capture >> current_frame;
-        imshow("Render Vid", current_frame);
+        count ++;
+        resize(current_frame, current_frame, Size(50, 50), cv::INTER_AREA);
+        vector<int> compression_params;
+        compression_params.push_back(IMWRITE_JPEG_QUALITY);
+        compression_params.push_back(100);
+        imwrite(iclassname + to_string(count) + ".jpeg", current_frame, compression_params);
+        // imshow("Render Vid", current_frame);
+        // cout << "Total frames : " << count << endl;
+
         int keyboard = waitKey(1); // ?
         if (keyboard == 'q' || keyboard == 27)
             break;
     }
+    cout << "Total frames : " << count << endl;
     return 0;
 }

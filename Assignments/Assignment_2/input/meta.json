@@ -1,9 +1,6 @@
 {
     "data": [
-        "data/marker/start.jpg",
-        "data/marker/stop.jpg",
-        "data/marker/scene1.jpeg",
-        "/Users/arghachakraborty/Downloads/MyVideo.mp4"
+        "/Users/arghachakraborty/Desktop/stop_1.mov"
     ],
-    "mesh": "data/models/tricar_transformed.obj"
+    "dir_name": "data/train/stop/1"
 }

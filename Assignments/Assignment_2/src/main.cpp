@@ -1,8 +1,8 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
-#include <sys/stat.h> 
-#include <sys/types.h> 
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "json.hpp"
 #include <vector>
 #include <opencv2/core.hpp>
@@ -36,7 +36,7 @@ int main(int argc, const char *argv[])
     const string video_file = meta_parser["data"][0];
     VideoCapture capture(video_file);
     Ptr<BackgroundSubtractor> pBackSub;
-    pBackSub = createBackgroundSubtractorMOG2();
+    pBackSub = createBackgroundSubtractorKNN();
     int fps = capture.get(cv::CAP_PROP_FPS);
     int count = 1;
     string name = meta_parser["dir_name"];
@@ -45,13 +45,19 @@ int main(int argc, const char *argv[])
     {
         Mat current_frame;
         capture >> current_frame;
-        count ++;
+        count++;
+        cvtColor(current_frame, current_frame, cv::COLOR_BGR2GRAY);
+        blur(current_frame, current_frame, Size(4, 4));
+        Canny(current_frame, current_frame, 10, 100, 3);
+        pBackSub->apply(current_frame, current_frame);
+        imshow("BW Vid", current_frame);
+
         resize(current_frame, current_frame, Size(50, 50), cv::INTER_AREA);
         vector<int> compression_params;
         compression_params.push_back(IMWRITE_JPEG_QUALITY);
         compression_params.push_back(100);
-        imwrite(iclassname + to_string(count) + ".jpeg", current_frame, compression_params);
-        // imshow("Render Vid", current_frame);
+        // imwrite(iclassname + to_string(count) + ".jpeg", current_frame, compression_params);
+        imshow("Render Vid", current_frame);
         // cout << "Total frames : " << count << endl;
 
         int keyboard = waitKey(1); // ?

@@ -32,9 +32,9 @@ class Net(nn.Module):
         self.conv1 = nn.Conv2d(3, 6, 3)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 3)
-        self.fc1 = nn.Linear(16 * 11 * 11, 80)
-        self.fc2 = nn.Linear(80, 20)
-        self.fc3 = nn.Linear(20, 3)
+        self.fc1 = nn.Linear(16 * 11 * 11, 200)
+        self.fc2 = nn.Linear(200, 40)
+        self.fc3 = nn.Linear(40, 3)
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -45,8 +45,9 @@ class Net(nn.Module):
         x = self.fc3(x)
         return x
 
-cap = cv2.VideoCapture('/Users/arghachakraborty/Desktop/test.mov')
-PATH = '/Users/arghachakraborty/Projects/CV_assignments/Assignments/Assignment_4/trained_net.pth'
+
+cap = cv2.VideoCapture('/Users/arghachakraborty/Desktop/stop_1.mov')
+PATH = '/Users/arghachakraborty/Projects/CV_assignments/Assignments/Assignment_4/trained_net_3.pth'
 net = Net()
 net.load_state_dict(torch.load(PATH))
 while(cap.isOpened()):
@@ -57,13 +58,9 @@ while(cap.isOpened()):
     out = net(batch_t)
     _, index = torch.max(out, 1)
     percentage = torch.nn.functional.softmax(out, dim=1)[0] * 100
-    print(classes[index[0]], percentage[index[0]].item())
-    # dim = (50, 50)
-    # resize image
-    # frame = cv2.resize(frame, dim, interpolation = cv2.INTER_AREA)
-    # output = net(torch.from_numpy(frame))
-    # _, predicted = torch.max(output, 1)
-    # print(classes[predicted])
+    # print(classes[index[0]], percentage[index[0]].item())
+    frame = cv2.putText(frame, classes[index[0]] + ' ' + str(percentage[index[0]].item()), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,  
+                   1, (0,255,0), 2, cv2.LINE_AA) 
     cv2.imshow('frame',frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break

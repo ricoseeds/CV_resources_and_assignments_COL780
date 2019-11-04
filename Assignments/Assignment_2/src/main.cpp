@@ -24,6 +24,7 @@ using cv::xfeatures2d::SIFT;
 using namespace std;
 using json = nlohmann::json;
 
+void removeBackground(Mat &input, Mat &background);
 int main(int argc, const char *argv[])
 {
 #ifdef _MSC_VER
@@ -34,31 +35,50 @@ int main(int argc, const char *argv[])
     json meta_parser;
     ifile >> meta_parser;
     const string video_file = meta_parser["data"][0];
-    VideoCapture capture(video_file);
+    VideoCapture capture(0);
+    // VideoCapture capture(video_file);
     Ptr<BackgroundSubtractor> pBackSub;
-    pBackSub = createBackgroundSubtractorKNN();
+    pBackSub = createBackgroundSubtractorMOG2(0, 50);
     int fps = capture.get(cv::CAP_PROP_FPS);
     int count = 1;
     string name = meta_parser["dir_name"];
     string iclassname = name + "_";
+    // Mat background = imread("background.jpeg", 0);
     while (true)
     {
-        Mat current_frame;
+        Mat current_frame, colfr;
         capture >> current_frame;
         count++;
-        cvtColor(current_frame, current_frame, cv::COLOR_BGR2GRAY);
-        blur(current_frame, current_frame, Size(4, 4));
-        Canny(current_frame, current_frame, 10, 100, 3);
-        pBackSub->apply(current_frame, current_frame);
-        imshow("BW Vid", current_frame);
 
-        resize(current_frame, current_frame, Size(50, 50), cv::INTER_AREA);
-        vector<int> compression_params;
-        compression_params.push_back(IMWRITE_JPEG_QUALITY);
-        compression_params.push_back(100);
+        // cvtColor(current_frame, current_frame, cv::COLOR_BGR2GRAY);
+        // current_frame.copyTo(colfr);
+        // blur(current_frame, current_frame, Size(10, 10));
+        // Canny(current_frame, current_frame, 100, 255, 3);
+        // blur(current_frame, current_frame, Size(8, 8));
+
+        pBackSub->apply(current_frame, current_frame);
+        // current_frame.copyTo(colfr);
+        // cvtColor(current_frame, current_frame, COLOR_BGR2HSV);
+        // removeBackground(current_frame, background);
+        // Detect the object based on HSV Range Values
+        // inRange(current_frame, Scalar(0, 58, 50), Scalar(30, 255, 255), current_frame);
+        // Canny(current_frame, current_frame, 100, 255, 3);
+        imshow("BW Vid", current_frame);
+        // bitwise_xor(colfr, current_frame, colfr, noArray());
+        // threshold(c  olfr, colfr, 240, 255, THRESH_BINARY);
+        // imshow("Col Vid", current_frame);
+        // imshow("test Vid", colfr);
+        // imwrite("save" + to_string(count) + ".jpeg", current_frame);
+        // return 0;
+
+        // resize(current_frame, current_frame, Size(50, 50), cv::INTER_AREA);
+        // resize(colfr, colfr, Size(50, 50), cv::INTER_AREA);
+        // vector<int> compression_params;
+        // compression_params.push_back(IMWRITE_JPEG_QUALITY);
+        // compression_params.push_back(100);
         // imwrite(iclassname + to_string(count) + ".jpeg", current_frame, compression_params);
-        imshow("Render Vid", current_frame);
-        // cout << "Total frames : " << count << endl;
+        // imshow("Render Vid", current_frame);
+        // imshow("Render Vid", colfr);
 
         int keyboard = waitKey(1); // ?
         if (keyboard == 'q' || keyboard == 27)
@@ -66,4 +86,23 @@ int main(int argc, const char *argv[])
     }
     cout << "Total frames : " << count << endl;
     return 0;
+}
+void removeBackground(Mat &input, Mat &background)
+{
+    int thresholdOffset = 30;
+    for (int i = 0; i < input.rows; i++)
+    {
+        for (int j = 0; j < input.cols; j++)
+        {
+            uchar framePixel = input.at<uchar>(i, j);
+            uchar bgPixel = background.at<uchar>(i, j);
+
+            if (
+                framePixel >= bgPixel - thresholdOffset &&
+                framePixel <= bgPixel + thresholdOffset)
+                input.at<uchar>(i, j) = 0;
+            else
+                input.at<uchar>(i, j) = 255;
+        }
+    }
 }

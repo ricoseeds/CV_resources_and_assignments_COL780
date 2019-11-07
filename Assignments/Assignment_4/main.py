@@ -13,11 +13,13 @@ import copy
 import math
 import os
 import random
+import vlc
 playlist = [
     '/Users/arghachakraborty/Desktop/1.mp4', '/Users/arghachakraborty/Desktop/2.mp4','/Users/arghachakraborty/Desktop/3.MP4'
     ]
+player = vlc.MediaPlayer(playlist[0])
 
-PATH = '/Users/arghachakraborty/Projects/CV_assignments/Assignments/Assignment_4/trained_net_gen_best.pth'
+PATH = '/Users/arghachakraborty/Projects/CV_assignments/Assignments/Assignment_4/trained_smart2.pth'
 transform = transforms.Compose([
 transforms.ToPILImage(),            
 transforms.Scale((50,50)),                   
@@ -66,25 +68,45 @@ import torch.nn.functional as F
 #         x = F.relu(self.fc2(x))
 #         x = self.fc3(x)
 #         return x
+# class Net(nn.Module):
+#     def __init__(self):
+#         super(Net, self).__init__()
+#         self.conv1 = nn.Conv2d(3, 8, 3)
+#         self.pool = nn.MaxPool2d(2, 2)
+#         self.fc0 = nn.Linear(8 * 24 * 24, 800)
+#         self.fc1 = nn.Linear(800, 300)
+#         self.fc2 = nn.Linear(300, 20)
+#         self.fc3 = nn.Linear(20, 3)
+
+#     def forward(self, x):
+#         x = self.pool(F.relu(self.conv1(x)))
+        
+#         x = x.view(-1, 8 * 24 * 24)
+#         x = F.relu(self.fc0(x))
+#         x = F.relu(self.fc1(x))
+#         x = F.relu(self.fc2(x))
+#         x = self.fc3(x)
+#         return x
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(3, 8, 3)
+        self.conv2 = nn.Conv2d(8, 16, 3)
         self.pool = nn.MaxPool2d(2, 2)
-        self.fc0 = nn.Linear(8 * 24 * 24, 800)
-        self.fc1 = nn.Linear(800, 300)
-        self.fc2 = nn.Linear(300, 20)
+        self.fc1 = nn.Linear(1936, 256)
+        self.fc2 = nn.Linear(256, 20)
         self.fc3 = nn.Linear(20, 3)
+        self.dropout = nn.Dropout(p = 0.2)
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
-        
-        x = x.view(-1, 8 * 24 * 24)
-        x = F.relu(self.fc0(x))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 1936)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+
 
 
 #print(c1.
@@ -93,7 +115,7 @@ net = Net()
 net.load_state_dict(torch.load(PATH))
 net.eval()
 
-classes = ['next', 'prev', 'stop']
+classes = ['stop','next', 'prev']
 
 
 cap_region_x_begin=0.5  # start point/total width
@@ -112,6 +134,7 @@ next_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test/next/'
 prevSwitch = False
 stopSwitch = False
 nextSwitch = False
+play_pause = False
  
 def count_files(in_directory):
     joiner= (in_directory + os.path.sep).__add__
@@ -153,6 +176,11 @@ def capture_frame(frame):
         cv2.imwrite(next_1+str(count_nxt)+".jpeg", frame)
         print("next "+ str(count_nxt))
 
+def play():
+    if play_pause == True:
+        player.play()
+    else:
+        player.pause()    
  
 # Camera
 camera = cv2.VideoCapture(0)
@@ -162,6 +190,10 @@ camera.set(10,200)
 count_prv = count_files(prev_1)
 count_nxt = count_files(next_1)
 count_stp = count_files(stop_1)
+state = False
+infer = [0.0, 0.0, 0.0]
+label = 'prev'
+epsilon = 0.1
 while camera.isOpened():
     ret, frame = camera.read()
     # threshold = cv2.getTrackbarPos('trh1', 'trackbar')
@@ -170,7 +202,7 @@ while camera.isOpened():
     cv2.rectangle(frame, (int(cap_region_x_begin * frame.shape[1]), 0),
                  (frame.shape[1], int(cap_region_y_end * frame.shape[0])), (255, 0, 0), 1)
     cv2.imshow('original', frame)
- 
+    old_label = label
     #  Main operation
     if isBgCaptured == 1:  # this part wont run until background captured
         img = removeBG(frame)
@@ -199,9 +231,34 @@ while camera.isOpened():
         percentage = torch.nn.functional.softmax(out, dim=1)[0] * 100
         # print(classes[index[0]] + ' ' + str(percentage[index[0]].item()))
         # print(percentage)
-        frame_ = cv2.putText(frame_, classes[index[0]] + ' ' + str(percentage[index[0]].item()), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,  
-                   1, (0,255,0), 2, cv2.LINE_AA) 
+        label = classes[index[0]]
+        if label == old_label : 
+            if label == 'prev':
+                infer[0] = np.clip(infer[0] + epsilon, 0.0, 1.0)
+                infer[1] = np.clip(infer[1] - epsilon, 0.0, 1.0)
+                infer[2] = np.clip(infer[2] - epsilon, 0.0, 1.0)
+            elif label == 'stop':
+                infer[0] = np.clip(infer[0] - epsilon, 0.0, 1.0)
+                infer[1] = np.clip(infer[1] + epsilon, 0.0, 1.0)
+                infer[2] = np.clip(infer[2] - epsilon, 0.0, 1.0)
+            elif label == 'next':
+                infer[0] = np.clip(infer[0] - epsilon, 0.0, 1.0)
+                infer[1] = np.clip(infer[1] - epsilon, 0.0, 1.0)
+                infer[2] = np.clip(infer[2] + epsilon, 0.0, 1.0)
+        index_max = np.argmax(infer)
+        print(infer)
+        # index[0] = index_max
+        frame_ = cv2.putText(frame_, classes[index_max] + ' ' + str(percentage[index[0]].item()), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,  
+                1, (0,255,0), 2, cv2.LINE_AA) 
+        # frame_ = cv2.putText(frame_, classes[index[0]] + ' ' + str(percentage[index[0]].item()), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,  
+        #            1, (0,255,0), 2, cv2.LINE_AA) 
+        # if classes[index[0]] == 'stop':
+        #     play_pause = not play_pause
+        #     play()
+
+        
         cv2.imshow('Frame',frame_ )
+
         if (prevSwitch or stopSwitch or nextSwitch ) and random.randint(1,101) < 40:
             capture_frame(frame_)
 

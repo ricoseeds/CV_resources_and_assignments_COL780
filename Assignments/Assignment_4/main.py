@@ -59,7 +59,7 @@ net = Net()
 net.load_state_dict(torch.load(PATH))
 net.eval()
 
-classes = ['stop','next', 'prev']
+classes = ['stop','next', 'prev', 'background']
 
 
 cap_region_x_begin=0.5  # start point/total width
@@ -141,11 +141,12 @@ count_prv = count_files(prev_1)
 count_nxt = count_files(next_1)
 count_stp = count_files(stop_1)
 state = False
-infer = [0.0, 0.0, 0.0]
+infer = [0.0, 0.0, 0.0, 0.0]
 label = 'prev'
-epsilon = 0.2
+epsilon = 0.09
 state = ['prev', 'prev']
 play()
+background_flag = True
 while camera.isOpened():
     state[0] = state[1]
     ret, frame = camera.read()
@@ -172,11 +173,15 @@ while camera.isOpened():
         blur = cv2.GaussianBlur(gray, (blurValue, blurValue), 0)
         # cv2.imshow('blur', blur)
         ret, thresh = cv2.threshold(blur, threshold, 255, cv2.THRESH_BINARY)
-        # cv2.imshow('ori', thresh)
+        count_pix = cv2.countNonZero(thresh)
+        # print(count_pix)
+        if count_pix < 25000:
+            background_flag = True
+        else:
+            background_flag = False
 
-        # thresh = cv2.putText(thresh, classes[index[0]] + ' ' + str(percentage[index[0]].item()), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,  
-                #    1, (0,255,0), 2, cv2.LINE_AA) 
-        # cv2.imshow('thresh', thresh)
+
+
         frame_ = cv2.bitwise_and(frame_,frame_,mask = thresh)
         img_t = transform(frame_)
         batch_t = torch.unsqueeze(img_t, 0)
@@ -186,26 +191,35 @@ while camera.isOpened():
         percentage = torch.nn.functional.softmax(out, dim=1)[0] * 100
         # print(classes[index[0]] + ' ' + str(percentage[index[0]].item()))
         # print(percentage)
+        if background_flag:
+            infer[0] = np.clip(infer[0] - epsilon, 0.0, 1.0)
+            infer[1] = np.clip(infer[1] - epsilon, 0.0, 1.0)
+            infer[2] = np.clip(infer[2] - epsilon, 0.0, 1.0)
+            infer[3] = np.clip(infer[3] + epsilon, 0.0, 1.0)
         label = classes[index[0]]
-        if label == old_label : 
+        if label == old_label and not background_flag: 
             if label == 'prev':
                 infer[0] = np.clip(infer[0] + epsilon, 0.0, 1.0)
                 infer[1] = np.clip(infer[1] - epsilon, 0.0, 1.0)
                 infer[2] = np.clip(infer[2] - epsilon, 0.0, 1.0)
+                infer[3] = np.clip(infer[3] - epsilon, 0.0, 1.0)
             elif label == 'stop':
                 infer[0] = np.clip(infer[0] - epsilon, 0.0, 1.0)
                 infer[1] = np.clip(infer[1] + epsilon, 0.0, 1.0)
                 infer[2] = np.clip(infer[2] - epsilon, 0.0, 1.0)
+                infer[3] = np.clip(infer[3] - epsilon, 0.0, 1.0)
             elif label == 'next':
                 infer[0] = np.clip(infer[0] - epsilon, 0.0, 1.0)
                 infer[1] = np.clip(infer[1] - epsilon, 0.0, 1.0)
                 infer[2] = np.clip(infer[2] + epsilon, 0.0, 1.0)
+                infer[3] = np.clip(infer[3] - epsilon, 0.0, 1.0)
+        print(infer)
         index_max = np.argmax(infer)
         state[1] = classes[index_max] 
-        if state[1] != state[0]:
+        if state[1] != state[0] and state[1] != 'background':
             if state[1] == 'stop':
-                player.stop()
-            elif state[1] == 'next':
+                player.pause()
+            elif state[1] == 'next' :
                 player.stop()
                 iterator = (iterator + 1) % 3
                 player = vlc.MediaPlayer(playlist[iterator])
@@ -215,17 +229,10 @@ while camera.isOpened():
                 iterator = (iterator - 1) % 3
                 player = vlc.MediaPlayer(playlist[iterator])
                 play()
-            
-
-        print(infer)
-        # index[0] = index_max
         frame_ = cv2.putText(frame_, classes[index_max] + ' ' + str(percentage[index[0]].item()), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,  
-                1, (0,255,0), 2, cv2.LINE_AA) 
-        
+                    1, (0,255,0), 2, cv2.LINE_AA) 
         cv2.imshow('Frame',frame_ )
 
- 
- 
     # Keyboard OP
     k = cv2.waitKey(10)
     if k == 27:  # press ESC to exit

@@ -19,7 +19,7 @@ playlist = [
     ]
 player = vlc.MediaPlayer(playlist[0])
 
-PATH = '/Users/arghachakraborty/Projects/CV_assignments/Assignments/Assignment_4/trained_smart2.pth'
+PATH = 'C:/open_prj/mconda/Assignment4/trained_smart2.pth'
 transform = transforms.Compose([
 transforms.ToPILImage(),            
 transforms.Scale((50,50)),                   
@@ -87,29 +87,33 @@ import torch.nn.functional as F
 #         x = F.relu(self.fc2(x))
 #         x = self.fc3(x)
 #         return x
+
+
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
+         # 3 input image channel, 8 output channels, 3x3x3 convolution kernel
         self.conv1 = nn.Conv2d(3, 8, 3)
+         # 8 input channel, 16 output channels, 3x3x8 convolution kernel
         self.conv2 = nn.Conv2d(8, 16, 3)
         self.pool = nn.MaxPool2d(2, 2)
+        # A fully connected layer 1936 -> 256
         self.fc1 = nn.Linear(1936, 256)
+        # A fully connected layer 256 -> 20
         self.fc2 = nn.Linear(256, 20)
+        # A fully connected layer 20 -> 3
         self.fc3 = nn.Linear(20, 3)
         self.dropout = nn.Dropout(p = 0.2)
 
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool(F.relu(self.conv1(x)))    # Layer1
+        x = self.pool(F.relu(self.conv2(x)))    # Layer2
         x = x.view(-1, 1936)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = F.relu(self.fc1(x))                 # Layer3
+        x = F.relu(self.fc2(x))                 # Layer4
+        x = self.fc3(x)                         # Layer5
         return x
 
-
-
-#print(c1.
 
 net = Net()
 net.load_state_dict(torch.load(PATH))
@@ -128,9 +132,9 @@ learningRate = 0
 # variables
 isBgCaptured = 0   # bool, whether the background captured
 triggerSwitch = False  # if true, keyborad simulator works
-prev_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test/prev/'
-stop_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test/stop/'
-next_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test/next/'
+prev_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/prev/'
+stop_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/stop/'
+next_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/next/'
 prevSwitch = False
 stopSwitch = False
 nextSwitch = False

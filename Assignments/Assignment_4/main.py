@@ -28,67 +28,6 @@ transforms.ToTensor()
 
 import torch.nn as nn
 import torch.nn.functional as F
-
-# class Net(nn.Module):
-#     def __init__(self):
-#         super(Net, self).__init__()
-#         self.conv1 = nn.Conv2d(3, 10, 3)
-#         self.pool = nn.MaxPool2d(2, 2)
-#         self.fc0 = nn.Linear(10 * 24 * 24, 600)
-#         self.fc1 = nn.Linear(600, 300)
-#         self.fc2 = nn.Linear(300, 20)
-#         self.fc3 = nn.Linear(20, 3)
-
-#     def forward(self, x):
-#         x = self.pool(F.relu(self.conv1(x)))
-        
-#         x = x.view(-1, 10 * 24 * 24)
-#         x = F.relu(self.fc0(x))
-#         x = F.relu(self.fc1(x))
-#         x = F.relu(self.fc2(x))
-#         x = self.fc3(x)
-#         return x
-
-# class Net(nn.Module):
-#     def __init__(self):
-#         super(Net, self).__init__()
-#         self.conv1 = nn.Conv2d(3, 6, 3)
-#         self.pool = nn.MaxPool2d(2, 2)
-#         self.fc0 = nn.Linear(6 * 24 * 24, 600)
-#         self.fc1 = nn.Linear(600, 300)
-#         self.fc2 = nn.Linear(300, 20)
-#         self.fc3 = nn.Linear(20, 3)
-
-#     def forward(self, x):
-#         x = self.pool(F.relu(self.conv1(x)))
-        
-#         x = x.view(-1, 6 * 24 * 24)
-#         x = F.relu(self.fc0(x))
-#         x = F.relu(self.fc1(x))
-#         x = F.relu(self.fc2(x))
-#         x = self.fc3(x)
-#         return x
-# class Net(nn.Module):
-#     def __init__(self):
-#         super(Net, self).__init__()
-#         self.conv1 = nn.Conv2d(3, 8, 3)
-#         self.pool = nn.MaxPool2d(2, 2)
-#         self.fc0 = nn.Linear(8 * 24 * 24, 800)
-#         self.fc1 = nn.Linear(800, 300)
-#         self.fc2 = nn.Linear(300, 20)
-#         self.fc3 = nn.Linear(20, 3)
-
-#     def forward(self, x):
-#         x = self.pool(F.relu(self.conv1(x)))
-        
-#         x = x.view(-1, 8 * 24 * 24)
-#         x = F.relu(self.fc0(x))
-#         x = F.relu(self.fc1(x))
-#         x = F.relu(self.fc2(x))
-#         x = self.fc3(x)
-#         return x
-
-
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -151,11 +90,14 @@ def count_files(in_directory):
 
 def removeBG(frame):
     fgmask = bgModel.apply(frame,learningRate=learningRate)
+    cv2.imshow("back", fgmask)
     # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     # res = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
  
     kernel = np.ones((3, 3), np.uint8)
     fgmask = cv2.erode(fgmask, kernel, iterations=1)
+    cv2.imshow("erode", fgmask)
+
     res = cv2.bitwise_and(frame, frame, mask=fgmask)
     return res
  
@@ -203,18 +145,19 @@ while camera.isOpened():
     # threshold = cv2.getTrackbarPos('trh1', 'trackbar')
     frame = cv2.bilateralFilter(frame, 5, 50, 100)  # smoothing filter
     frame = cv2.flip(frame, 1)  # flip the frame horizontally
-    cv2.rectangle(frame, (int(cap_region_x_begin * frame.shape[1]), 0),
-                 (frame.shape[1], int(cap_region_y_end * frame.shape[0])), (255, 0, 0), 1)
+    # cv2.rectangle(frame, (int(cap_region_x_begin * frame.shape[1]), 0),
+    #              (frame.shape[1], int(cap_region_y_end * frame.shape[0])), (255, 0, 0), 1)
+    frame = frame[0:int(cap_region_x_begin * frame.shape[1]), int(cap_region_y_end * frame.shape[0]):frame.shape[1]]
     cv2.imshow('original', frame)
     old_label = label
     #  Main operation
     if isBgCaptured == 1:  # this part wont run until background captured
         img = removeBG(frame)
         frame_ = copy.deepcopy(frame)
-        img = img[0:int(cap_region_y_end * frame.shape[0]),
-                    int(cap_region_x_begin * frame.shape[1]):frame.shape[1]]  # clip the ROI
-        frame_ = frame_[0:int(cap_region_y_end * frame.shape[0]),
-                    int(cap_region_x_begin * frame.shape[1]):frame.shape[1]]  # clip the ROI
+        img = img[0:int(frame.shape[0]),
+                    0:frame.shape[1]]  # clip the ROI
+        frame_ = frame_[0:int(frame.shape[0]),
+                    0:frame.shape[1]]  # clip the ROI
         # cv2.imshow('mask', img)
  
         # convert the image into binary image

@@ -17,9 +17,10 @@ import vlc
 playlist = [
     '/Users/arghachakraborty/Desktop/1.mp4', '/Users/arghachakraborty/Desktop/2.mp4','/Users/arghachakraborty/Desktop/3.MP4'
     ]
-player = vlc.MediaPlayer(playlist[0])
+# player = vlc.MediaPlayer(playlist[0])
 
-PATH = 'C:/open_prj/mconda/Assignment4/trained_smart2.pth'
+# PATH = 'C:/open_prj/mconda/Assignment4/trained_smart2.pth'
+PATH = '/Users/arghachakraborty/Projects/CV_assignments/Assignments/Assignment_4/trained_tuesday.pth'
 transform = transforms.Compose([
 transforms.ToPILImage(),            
 transforms.Scale((50,50)),                   
@@ -71,13 +72,14 @@ learningRate = 0
 # variables
 isBgCaptured = 0   # bool, whether the background captured
 triggerSwitch = False  # if true, keyborad simulator works
-prev_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/prev/'
-stop_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/stop/'
-next_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/next/'
-prevSwitch = False
-stopSwitch = False
-nextSwitch = False
-play_pause = False
+# prev_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/prev/'
+# stop_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/stop/'
+# next_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/next/'
+prev_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/train_sukhraj/prev/'
+stop_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/train_sukhraj/stop/'
+next_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/train_sukhraj/next/'
+iterator = 0
+player = vlc.MediaPlayer(playlist[iterator])
  
 def count_files(in_directory):
     joiner= (in_directory + os.path.sep).__add__
@@ -111,22 +113,24 @@ def capture_frame(frame):
     frame = cv2.resize(frame, (50, 50), interpolation = cv2.INTER_AREA)
     if prevSwitch == True:
         count_prv = count_prv + 1
-        cv2.imwrite(prev_1+str(count_prv)+".jpeg", frame)
+        cv2.imwrite(prev_1+'s'+str(count_prv)+".jpeg", frame)
         print("prev "+ str(count_prv))
     elif stopSwitch == True:
         count_stp = count_stp + 1
-        cv2.imwrite(stop_1+str(count_stp)+".jpeg", frame)
+        cv2.imwrite(stop_1+'s'+str(count_stp)+".jpeg", frame)
         print("stop "+ str(count_stp))
     elif nextSwitch == True:
         count_nxt = count_nxt + 1
-        cv2.imwrite(next_1+str(count_nxt)+".jpeg", frame)
+        cv2.imwrite(next_1+'s' + str(count_nxt)+".jpeg", frame)
         print("next "+ str(count_nxt))
 
 def play():
-    if play_pause == True:
-        player.play()
-    else:
-        player.pause()    
+    player.play()
+
+def pause():
+    player.pause()
+
+
  
 # Camera
 camera = cv2.VideoCapture(0)
@@ -139,8 +143,11 @@ count_stp = count_files(stop_1)
 state = False
 infer = [0.0, 0.0, 0.0]
 label = 'prev'
-epsilon = 0.1
+epsilon = 0.2
+state = ['prev', 'prev']
+play()
 while camera.isOpened():
+    state[0] = state[1]
     ret, frame = camera.read()
     # threshold = cv2.getTrackbarPos('trh1', 'trackbar')
     frame = cv2.bilateralFilter(frame, 5, 50, 100)  # smoothing filter
@@ -169,6 +176,7 @@ while camera.isOpened():
 
         # thresh = cv2.putText(thresh, classes[index[0]] + ' ' + str(percentage[index[0]].item()), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,  
                 #    1, (0,255,0), 2, cv2.LINE_AA) 
+        # cv2.imshow('thresh', thresh)
         frame_ = cv2.bitwise_and(frame_,frame_,mask = thresh)
         img_t = transform(frame_)
         batch_t = torch.unsqueeze(img_t, 0)
@@ -193,21 +201,28 @@ while camera.isOpened():
                 infer[1] = np.clip(infer[1] - epsilon, 0.0, 1.0)
                 infer[2] = np.clip(infer[2] + epsilon, 0.0, 1.0)
         index_max = np.argmax(infer)
+        state[1] = classes[index_max] 
+        if state[1] != state[0]:
+            if state[1] == 'stop':
+                player.stop()
+            elif state[1] == 'next':
+                player.stop()
+                iterator = (iterator + 1) % 3
+                player = vlc.MediaPlayer(playlist[iterator])
+                play()
+            elif state[1] == 'prev':
+                player.stop()
+                iterator = (iterator - 1) % 3
+                player = vlc.MediaPlayer(playlist[iterator])
+                play()
+            
+
         print(infer)
         # index[0] = index_max
         frame_ = cv2.putText(frame_, classes[index_max] + ' ' + str(percentage[index[0]].item()), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,  
                 1, (0,255,0), 2, cv2.LINE_AA) 
-        # frame_ = cv2.putText(frame_, classes[index[0]] + ' ' + str(percentage[index[0]].item()), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,  
-        #            1, (0,255,0), 2, cv2.LINE_AA) 
-        # if classes[index[0]] == 'stop':
-        #     play_pause = not play_pause
-        #     play()
-
         
         cv2.imshow('Frame',frame_ )
-
-        if (prevSwitch or stopSwitch or nextSwitch ) and random.randint(1,101) < 40:
-            capture_frame(frame_)
 
  
  

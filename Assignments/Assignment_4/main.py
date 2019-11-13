@@ -17,10 +17,8 @@ import vlc
 playlist = [
     '/Users/arghachakraborty/Desktop/1.mp4', '/Users/arghachakraborty/Desktop/2.mp4','/Users/arghachakraborty/Desktop/3.MP4'
     ]
-# player = vlc.MediaPlayer(playlist[0])
 
-# PATH = 'C:/open_prj/mconda/Assignment4/trained_smart2.pth'
-PATH = '/Users/arghachakraborty/Projects/CV_assignments/Assignments/Assignment_4/trained_tuesday.pth'
+PATH = '/Users/arghachakraborty/Projects/CV_assignments/Assignments/Assignment_4/trained_final_submission.pth'
 transform = transforms.Compose([
 transforms.ToPILImage(),            
 transforms.Scale((50,50)),                   
@@ -75,9 +73,13 @@ triggerSwitch = False  # if true, keyborad simulator works
 # prev_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/prev/'
 # stop_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/stop/'
 # next_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/next/'
-prev_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/train_sukhraj/prev/'
-stop_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/train_sukhraj/stop/'
-next_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/train_sukhraj/next/'
+prev_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test_argha/prev/'
+stop_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test_argha/stop/'
+next_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test_argha/next/'
+prevSwitch = False
+stopSwitch = False
+nextSwitch = False
+ 
 iterator = 0
 player = vlc.MediaPlayer(playlist[iterator])
  
@@ -135,8 +137,6 @@ def pause():
 # Camera
 camera = cv2.VideoCapture(0)
 camera.set(10,200)
-# cv2.namedWindow('trackbar')
-# cv2.createTrackbar('trh1', 'trackbar', threshold, 100, printThreshold)
 count_prv = count_files(prev_1)
 count_nxt = count_files(next_1)
 count_stp = count_files(stop_1)
@@ -153,8 +153,6 @@ while camera.isOpened():
     # threshold = cv2.getTrackbarPos('trh1', 'trackbar')
     frame = cv2.bilateralFilter(frame, 5, 50, 100)  # smoothing filter
     frame = cv2.flip(frame, 1)  # flip the frame horizontally
-    # cv2.rectangle(frame, (int(cap_region_x_begin * frame.shape[1]), 0),
-    #              (frame.shape[1], int(cap_region_y_end * frame.shape[0])), (255, 0, 0), 1)
     frame = frame[0:int(cap_region_x_begin * frame.shape[1]), int(cap_region_y_end * frame.shape[0]):frame.shape[1]]
     cv2.imshow('original', frame)
     old_label = label
@@ -166,16 +164,13 @@ while camera.isOpened():
                     0:frame.shape[1]]  # clip the ROI
         frame_ = frame_[0:int(frame.shape[0]),
                     0:frame.shape[1]]  # clip the ROI
-        # cv2.imshow('mask', img)
- 
         # convert the image into binary image
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         blur = cv2.GaussianBlur(gray, (blurValue, blurValue), 0)
-        # cv2.imshow('blur', blur)
         ret, thresh = cv2.threshold(blur, threshold, 255, cv2.THRESH_BINARY)
         count_pix = cv2.countNonZero(thresh)
         # print(count_pix)
-        if count_pix < 25000:
+        if count_pix < 25000: # background detection
             background_flag = True
         else:
             background_flag = False
@@ -189,8 +184,6 @@ while camera.isOpened():
         out = net(batch_t)
         _, index = torch.max(out, 1)
         percentage = torch.nn.functional.softmax(out, dim=1)[0] * 100
-        # print(classes[index[0]] + ' ' + str(percentage[index[0]].item()))
-        # print(percentage)
         if background_flag:
             infer[0] = np.clip(infer[0] - epsilon, 0.0, 1.0)
             infer[1] = np.clip(infer[1] - epsilon, 0.0, 1.0)
@@ -229,6 +222,7 @@ while camera.isOpened():
                 iterator = (iterator - 1) % 3
                 player = vlc.MediaPlayer(playlist[iterator])
                 play()
+        # capture_frame(frame_) 
         frame_ = cv2.putText(frame_, classes[index_max] + ' ' + str(percentage[index[0]].item()), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,  
                     1, (0,255,0), 2, cv2.LINE_AA) 
         cv2.imshow('Frame',frame_ )
@@ -242,16 +236,16 @@ while camera.isOpened():
     elif k == ord('b'):  # press 'b' to capture the background
         bgModel = cv2.createBackgroundSubtractorMOG2(0, bgSubThreshold)
         isBgCaptured = 1
-        print( '!!!Background Captured!!!')
+        print( 'Background')
     elif k == ord('r'):  # press 'r' to reset the background
         bgModel = None
         triggerSwitch = False
         isBgCaptured = 0
         clear_all_switch()
-        print ('!!!Reset BackGround!!!')
+        print ('Reset BackGround')
     elif k == ord('n'):
         triggerSwitch = True
-        print ('!!!Trigger On!!!')
+        print ('Trigger On')
     elif k == ord('u'):
         clear_all_switch()
         prevSwitch = True
@@ -267,5 +261,3 @@ while camera.isOpened():
     elif k == ord('p'):
         clear_all_switch()
         print ('clearall')
-
-# print(count_files(stop_1))

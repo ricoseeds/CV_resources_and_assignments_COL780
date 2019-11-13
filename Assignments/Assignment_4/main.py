@@ -73,9 +73,9 @@ triggerSwitch = False  # if true, keyborad simulator works
 # prev_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/prev/'
 # stop_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/stop/'
 # next_1 = 'C:/open_prj/mconda/Assignment4/CV_resources_and_assignments_COL780/data/test/next/'
-prev_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test_argha/prev/'
-stop_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test_argha/stop/'
-next_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test_argha/next/'
+prev_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test/prev/'
+stop_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test/stop/'
+next_1 = '/Users/arghachakraborty/Projects/CV_assignments/data/test/next/'
 prevSwitch = False
 stopSwitch = False
 nextSwitch = False
@@ -92,16 +92,12 @@ def count_files(in_directory):
     )
 
 
-def removeBG(frame):
+def remove_background(frame):
     fgmask = bgModel.apply(frame,learningRate=learningRate)
     cv2.imshow("back", fgmask)
-    # kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-    # res = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel)
- 
     kernel = np.ones((3, 3), np.uint8)
     fgmask = cv2.erode(fgmask, kernel, iterations=1)
     cv2.imshow("erode", fgmask)
-
     res = cv2.bitwise_and(frame, frame, mask=fgmask)
     return res
  
@@ -158,7 +154,7 @@ while camera.isOpened():
     old_label = label
     #  Main operation
     if isBgCaptured == 1:  # this part wont run until background captured
-        img = removeBG(frame)
+        img = remove_background(frame)
         frame_ = copy.deepcopy(frame)
         img = img[0:int(frame.shape[0]),
                     0:frame.shape[1]]  # clip the ROI
